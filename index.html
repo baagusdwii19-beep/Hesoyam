@@ -324,6 +324,8 @@ textarea{resize:vertical;min-height:60px;}
 .pop-table tr:nth-child(even) td{background:var(--bg2);}
 .pop-del-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:15px;padding:3px;border-radius:5px;}
 .pop-del-btn:hover{color:var(--red);background:var(--red-bg);}
+.pop-edit-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:15px;padding:3px;border-radius:5px;margin-right:2px;}
+.pop-edit-btn:hover{color:var(--purple);background:var(--purple-l);}
 .pop-empty{text-align:center;padding:40px;color:var(--text3);font-size:13px;}
 .pop-empty i{font-size:34px;display:block;margin-bottom:10px;color:#ccc;}
 /* Komplain */
@@ -679,7 +681,13 @@ textarea{resize:vertical;min-height:60px;}
 /* Month report card */
 .keu-month-card{background:var(--bg);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px;box-shadow:var(--shadow);}
 .keu-month-head{background:linear-gradient(135deg,#1e1e2e,#313244);color:#fff;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
-.keu-month-title{font-size:15px;font-weight:700;}
+.keu-month-title{font-size:15px;font-weight:700;display:flex;align-items:center;}
+.keu-month-head{cursor:pointer;}
+.keu-month-arrow{transition:transform .25s;font-size:18px;}
+.keu-month-card.collapsed .keu-month-arrow{transform:rotate(-90deg);}
+.keu-month-mini{font-size:12px;font-weight:600;color:#a6e3a1;margin-left:12px;opacity:.95;}
+.keu-month-body{max-height:6000px;overflow:hidden;transition:max-height .35s ease, opacity .25s;opacity:1;}
+.keu-month-card.collapsed .keu-month-body{max-height:0;opacity:0;}
 .keu-month-actions{display:flex;gap:6px;}
 .keu-month-actions button{background:rgba(255,255,255,.15);border:none;color:#fff;cursor:pointer;padding:5px 9px;border-radius:6px;font-size:11px;display:flex;align-items:center;gap:4px;}
 .keu-month-actions button:hover{background:rgba(255,255,255,.28);}
@@ -4695,9 +4703,27 @@ function saveKeu() {
     const idx = keuData.findIndex(d => d.id === keuEditId);
     if (idx >= 0) keuData[idx] = record;
   } else {
-    // prevent duplicate month+year
+    // cek duplikat bulan+tahun
     const dup = keuData.find(d => d.bulan===bulan && d.tahun===tahun);
-    if (dup) { if(!confirm('Laporan ' + BULAN_NAMA[bulan] + ' ' + tahun + ' sudah ada. Timpa?')) return; keuData = keuData.filter(d=>d!==dup); }
+    if (dup) {
+      // GABUNG: tambahkan perusahaan baru ke laporan yang sudah ada (jangan timpa!)
+      const pilih = confirm('Laporan ' + BULAN_NAMA[bulan] + ' ' + tahun + ' sudah ada dengan ' + (dup.companies||[]).length + ' perusahaan.\n\nOK = GABUNG (tambahkan perusahaan baru ke laporan yang ada)\nCancel = Batal');
+      if (!pilih) return;
+      // gabungkan: perusahaan dengan nama sama di-update, nama baru ditambahkan
+      const merged = (dup.companies || []).slice();
+      record.companies.forEach(newComp => {
+        const existIdx = merged.findIndex(c => (c.name||'').toLowerCase() === (newComp.name||'').toLowerCase());
+        if (existIdx >= 0) merged[existIdx] = newComp; // nama sama → update
+        else merged.push(newComp); // nama baru → tambah
+      });
+      dup.companies = merged;
+      saveKeuData();
+      closeKeuForm();
+      initKeuYear();
+      document.getElementById('keu-tahun').value = tahun;
+      renderKeuangan();
+      return;
+    }
     keuData.unshift(record);
   }
   saveKeuData();
@@ -4724,6 +4750,12 @@ function editKeu(id) {
   renderKeuCompTabs();
   switchKeuComp(0);
   document.getElementById('keu-modal').classList.add('show');
+}
+
+// Buka edit bulan + langsung tambah perusahaan baru
+function addCompToMonth(id) {
+  editKeu(id);
+  setTimeout(() => { addKeuComp(); }, 100);
 }
 
 function deleteKeu(id) {
@@ -4798,15 +4830,30 @@ function toggleKeuComp(cid) {
 }
 
 function buildKeuMonthCard(d) {
-  let html = '<div class="keu-month-card">';
-  html += '<div class="keu-month-head"><div class="keu-month-title"><i class="ti ti-calendar" style="vertical-align:-2px;margin-right:5px;"></i>' + BULAN_NAMA[d.bulan] + ' ' + d.tahun + '</div>';
-  html += '<div class="keu-month-actions">';
+  // hitung total keuntungan bulan utk ringkasan di header
+  let monthProfit = 0;
+  (d.companies||[]).forEach(c => {
+    const sumRows = rows => (rows||[]).reduce((s,r)=>s+rowNominal(r),0);
+    monthProfit += sumRows(c.pendapatan) - sumRows(c.pengeluaran);
+  });
+  const mcid = 'keumonth_' + d.id;
+  let html = '<div class="keu-month-card collapsed" id="' + mcid + '">';
+  html += '<div class="keu-month-head" onclick="toggleKeuMonth(\'' + mcid + '\')"><div class="keu-month-title"><i class="ti ti-chevron-down keu-month-arrow"></i><i class="ti ti-calendar" style="vertical-align:-2px;margin:0 5px 0 8px;"></i>' + BULAN_NAMA[d.bulan] + ' ' + d.tahun + '<span class="keu-month-mini">' + (monthProfit>=0?'+':'') + rupiah(monthProfit) + '</span></div>';
+  html += '<div class="keu-month-actions" onclick="event.stopPropagation()">';
+  html += '<button onclick="addCompToMonth(\'' + d.id + '\')"><i class="ti ti-plus"></i> Perusahaan</button>';
   html += '<button onclick="editKeu(\'' + d.id + '\')"><i class="ti ti-edit"></i> Edit</button>';
   html += '<button onclick="deleteKeu(\'' + d.id + '\')"><i class="ti ti-trash"></i> Hapus</button>';
   html += '</div></div>';
+  html += '<div class="keu-month-body">';
   d.companies.forEach(c => html += buildCompTable(c));
   html += '</div>';
+  html += '</div>';
   return html;
+}
+
+function toggleKeuMonth(mcid) {
+  const el = document.getElementById(mcid);
+  if (el) el.classList.toggle('collapsed');
 }
 
 // ── EXPORT ──
@@ -5842,11 +5889,15 @@ function printSop() {
 // POP - Pemakaian Bulanan
 // ══════════════════════════════════════════════════════
 let popData = safeParse('hesoyam_pop', []);
+let popEditId = null;
 let popNominalManual = false;
 
 function savePopData() { syncSet('hesoyam_pop', popData); }
 
 function openPopForm() {
+  popEditId = null;
+  const t = document.getElementById('pop-modal-title');
+  if (t) t.innerHTML = '<i class="ti ti-package" style="color:var(--purple)"></i> Input Pemakaian POP';
   document.getElementById('pop-tanggal').value = new Date().toISOString().split('T')[0];
   document.getElementById('pop-item').value = '';
   document.getElementById('pop-qty').value = '';
@@ -5876,17 +5927,41 @@ function savePop() {
   const nominalInput = parseFloat(document.getElementById('pop-nominal').value) || 0;
   // nominal: pakai manual jika ada, atau hitung qty*harga
   const nominalVal = nominalInput || (qtyVal * hargaVal);
-  popData.unshift({
-    id: Date.now().toString(),
+  const record = {
+    id: popEditId || Date.now().toString(),
     tanggal: tgl, item, qty: qtyVal,
     satuan: document.getElementById('pop-satuan').value.trim(),
     harga: hargaVal,
     nominal: nominalVal,
     ket: document.getElementById('pop-ket').value.trim()
-  });
+  };
+  if (popEditId) {
+    const idx = popData.findIndex(p => p.id === popEditId);
+    if (idx >= 0) popData[idx] = record;
+    popEditId = null;
+  } else {
+    popData.unshift(record);
+  }
   savePopData();
   closePopForm();
   renderPopRekap();
+}
+
+function editPop(id) {
+  const p = popData.find(x => x.id === id);
+  if (!p) return;
+  popEditId = id;
+  const t = document.getElementById('pop-modal-title');
+  if (t) t.innerHTML = '<i class="ti ti-edit" style="color:var(--purple)"></i> Edit Pemakaian POP';
+  document.getElementById('pop-tanggal').value = p.tanggal || '';
+  document.getElementById('pop-item').value = p.item || '';
+  document.getElementById('pop-qty').value = p.qty || '';
+  document.getElementById('pop-satuan').value = p.satuan || '';
+  document.getElementById('pop-harga').value = p.harga || '';
+  document.getElementById('pop-nominal').value = p.nominal || '';
+  popNominalManual = !!(p.nominal && p.nominal !== (p.qty||0)*(p.harga||0));
+  document.getElementById('pop-ket').value = p.ket || '';
+  document.getElementById('pop-modal').classList.add('show');
 }
 
 function deletePop(id) {
@@ -5952,7 +6027,7 @@ function renderPopRekap() {
   html += '<div style="overflow:auto;"><table class="pop-table"><thead><tr><th>Tanggal</th><th>Item</th><th style="text-align:right;">Jumlah</th><th>Satuan</th><th style="text-align:right;">Harga</th><th style="text-align:right;">Nominal</th><th>Keterangan</th><th></th></tr></thead><tbody>';
   filtered.sort((a,b)=>b.tanggal.localeCompare(a.tanggal)).forEach(p => {
     const nom = popNom(p);
-    html += '<tr><td>' + formatTgl(p.tanggal) + '</td><td>' + esc(p.item) + '</td><td style="text-align:right;font-weight:600;">' + (p.qty||0).toLocaleString('id-ID') + '</td><td>' + esc(p.satuan||'-') + '</td><td style="text-align:right;">' + (p.harga ? rupiah(p.harga) : '-') + '</td><td style="text-align:right;font-weight:600;">' + (nom ? rupiah(nom) : '-') + '</td><td>' + esc(p.ket||'-') + '</td><td><button class="pop-del-btn" onclick="deletePop(\'' + p.id + '\')"><i class="ti ti-trash"></i></button></td></tr>';
+    html += '<tr><td>' + formatTgl(p.tanggal) + '</td><td>' + esc(p.item) + '</td><td style="text-align:right;font-weight:600;">' + (p.qty||0).toLocaleString('id-ID') + '</td><td>' + esc(p.satuan||'-') + '</td><td style="text-align:right;">' + (p.harga ? rupiah(p.harga) : '-') + '</td><td style="text-align:right;font-weight:600;">' + (nom ? rupiah(nom) : '-') + '</td><td>' + esc(p.ket||'-') + '</td><td style="white-space:nowrap;"><button class="pop-edit-btn" onclick="editPop(\'' + p.id + '\')"><i class="ti ti-edit"></i></button><button class="pop-del-btn" onclick="deletePop(\'' + p.id + '\')"><i class="ti ti-trash"></i></button></td></tr>';
   });
   html += '</tbody></table></div>';
   wrap.innerHTML = html;
