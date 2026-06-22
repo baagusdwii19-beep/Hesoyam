@@ -500,6 +500,12 @@ textarea{resize:vertical;min-height:60px;}
 .sync-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle;}
 .sync-on{background:#10b981;box-shadow:0 0 0 2px rgba(16,185,129,.2);}
 .sync-off{background:#f59e0b;box-shadow:0 0 0 2px rgba(245,158,11,.2);}
+.sync-toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);z-index:300;padding:11px 18px;border-radius:99px;font-size:12.5px;font-weight:600;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:all .25s;white-space:nowrap;max-width:90vw;}
+.sync-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.sync-toast.ok{background:#10b981;}
+.sync-toast.err{background:#dc2626;}
+.sync-toast.warn{background:#f59e0b;}
+@media (min-width:769px){.sync-toast{bottom:30px;}}
 /* MUSIC PLAYER */
 .music-fab{position:fixed;right:18px;bottom:90px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#1db954,#1ed760);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;box-shadow:0 6px 20px rgba(29,185,84,.45);z-index:95;transition:transform .15s;animation:musicPulse 2.5s ease-in-out infinite;}
 .music-fab:active{transform:scale(.9);}
@@ -2701,8 +2707,31 @@ let _suppressSync = false;      // jangan push balik saat sedang menerima dari c
 function syncSet(key, data) {
   try { localStorage.setItem(key, JSON.stringify(data)); } catch(e) { console.warn('localStorage gagal', e); }
   if (FB_OK && !_suppressSync && SYNC_NODES[key]) {
-    fbDB.ref('data/' + SYNC_NODES[key]).set(data).catch(e => console.warn('Sync ke cloud gagal (' + key + '):', e.message));
+    fbDB.ref('data/' + SYNC_NODES[key]).set(data).then(() => {
+      syncToast('✓ Tersimpan online', 'ok');
+    }).catch(e => {
+      console.warn('Sync ke cloud gagal (' + key + '):', e.message);
+      syncToast('✗ Gagal simpan ke server. Cek koneksi/Rules Firebase.', 'err');
+    });
+  } else if (!_suppressSync && SYNC_NODES[key]) {
+    // tersimpan lokal saja (offline / Firebase tidak siap)
+    syncToast('⚠ Tersimpan lokal (belum online)', 'warn');
   }
+}
+
+let _syncToastTimer = null;
+function syncToast(msg, type) {
+  let el = document.getElementById('sync-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'sync-toast';
+    el.className = 'sync-toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.className = 'sync-toast show ' + (type||'ok');
+  if (_syncToastTimer) clearTimeout(_syncToastTimer);
+  _syncToastTimer = setTimeout(() => { el.className = 'sync-toast ' + (type||'ok'); }, 2500);
 }
 
 // Tarik semua data dari cloud sekali (saat login), lalu pasang listener realtime
@@ -2724,20 +2753,27 @@ function startCloudSync(onReady) {
 }
 
 // Terapkan data cloud ke variabel global + localStorage + render
+// Firebase simpan array sebagai object {0:.., 1:..}. Pastikan balik jadi array.
+function toArray(val) {
+  if (Array.isArray(val)) return val;
+  if (val && typeof val === 'object') return Object.values(val);
+  return [];
+}
+
 function applyCloudData(cloud, isInitial) {
   _suppressSync = true;
   try {
-    if (cloud.bap)        { baData = cloud.bap;            localStorage.setItem('hesoyam_bap_v1', JSON.stringify(baData)); }
-    if (cloud.adj)        { adjData = cloud.adj;           localStorage.setItem('hesoyam_adj_v1', JSON.stringify(adjData)); }
-    if (cloud.handover)   { handoverData = cloud.handover; localStorage.setItem('hesoyam_handover', JSON.stringify(handoverData)); }
-    if (cloud.suratjalan) { sjData = cloud.suratjalan;     localStorage.setItem('hesoyam_suratjalan', JSON.stringify(sjData)); }
-    if (cloud.pop)        { popData = cloud.pop;           localStorage.setItem('hesoyam_pop', JSON.stringify(popData)); }
-    if (cloud.sop)        { sopData = cloud.sop;           localStorage.setItem('hesoyam_sop', JSON.stringify(sopData)); }
-    if (cloud.kontrak)    { kontrakData = cloud.kontrak;   localStorage.setItem('hesoyam_kontrak', JSON.stringify(kontrakData)); }
-    if (cloud.komplain)   { komplainData = cloud.komplain; localStorage.setItem('hesoyam_komplain', JSON.stringify(komplainData)); }
-    if (cloud.keuangan)   { keuData = cloud.keuangan;      localStorage.setItem('hesoyam_keuangan_v2', JSON.stringify(keuData)); }
-    if (cloud.kurir)      { kurirList = cloud.kurir;       localStorage.setItem('hesoyam_kurir', JSON.stringify(kurirList)); }
-    if (cloud.jenis)      { jenisList = cloud.jenis;       localStorage.setItem('hesoyam_jenis', JSON.stringify(jenisList)); }
+    if (cloud.bap)        { baData = toArray(cloud.bap);            localStorage.setItem('hesoyam_bap_v1', JSON.stringify(baData)); }
+    if (cloud.adj)        { adjData = toArray(cloud.adj);           localStorage.setItem('hesoyam_adj_v1', JSON.stringify(adjData)); }
+    if (cloud.handover)   { handoverData = toArray(cloud.handover); localStorage.setItem('hesoyam_handover', JSON.stringify(handoverData)); }
+    if (cloud.suratjalan) { sjData = toArray(cloud.suratjalan);     localStorage.setItem('hesoyam_suratjalan', JSON.stringify(sjData)); }
+    if (cloud.pop)        { popData = toArray(cloud.pop);           localStorage.setItem('hesoyam_pop', JSON.stringify(popData)); }
+    if (cloud.sop)        { sopData = toArray(cloud.sop);           localStorage.setItem('hesoyam_sop', JSON.stringify(sopData)); }
+    if (cloud.kontrak)    { kontrakData = toArray(cloud.kontrak);   localStorage.setItem('hesoyam_kontrak', JSON.stringify(kontrakData)); }
+    if (cloud.komplain)   { komplainData = toArray(cloud.komplain); localStorage.setItem('hesoyam_komplain', JSON.stringify(komplainData)); }
+    if (cloud.keuangan)   { keuData = toArray(cloud.keuangan);      localStorage.setItem('hesoyam_keuangan_v2', JSON.stringify(keuData)); }
+    if (cloud.kurir)      { kurirList = toArray(cloud.kurir);       localStorage.setItem('hesoyam_kurir', JSON.stringify(kurirList)); }
+    if (cloud.jenis)      { jenisList = toArray(cloud.jenis);       localStorage.setItem('hesoyam_jenis', JSON.stringify(jenisList)); }
   } catch(e) { console.warn('applyCloudData error', e); }
   _suppressSync = false;
   if (!isInitial) refreshCurrentView();
