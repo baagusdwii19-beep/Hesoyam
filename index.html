@@ -2760,18 +2760,45 @@ function toArray(val) {
   return [];
 }
 
+// Normalisasi data keuangan: Firebase ubah semua array bersarang jadi object,
+// jadi kita kembalikan companies/pendapatan/pengeluaran ke bentuk array.
+function normalizeKeu(arr) {
+  return toArray(arr).map(d => {
+    if (!d || typeof d !== 'object') return d;
+    return Object.assign({}, d, {
+      companies: toArray(d.companies).map(c => {
+        if (!c || typeof c !== 'object') return c;
+        return Object.assign({}, c, {
+          pendapatan: toArray(c.pendapatan),
+          pengeluaran: toArray(c.pengeluaran)
+        });
+      })
+    });
+  });
+}
+
+// Normalisasi umum untuk data yang punya nested array (foto, items, dll)
+function normalizeNested(arr, fields) {
+  return toArray(arr).map(d => {
+    if (!d || typeof d !== 'object') return d;
+    const copy = Object.assign({}, d);
+    fields.forEach(f => { if (copy[f] !== undefined) copy[f] = toArray(copy[f]); });
+    return copy;
+  });
+}
+
 function applyCloudData(cloud, isInitial) {
   _suppressSync = true;
   try {
-    if (cloud.bap)        { baData = toArray(cloud.bap);            localStorage.setItem('hesoyam_bap_v1', JSON.stringify(baData)); }
-    if (cloud.adj)        { adjData = toArray(cloud.adj);           localStorage.setItem('hesoyam_adj_v1', JSON.stringify(adjData)); }
-    if (cloud.handover)   { handoverData = toArray(cloud.handover); localStorage.setItem('hesoyam_handover', JSON.stringify(handoverData)); }
-    if (cloud.suratjalan) { sjData = toArray(cloud.suratjalan);     localStorage.setItem('hesoyam_suratjalan', JSON.stringify(sjData)); }
-    if (cloud.pop)        { popData = toArray(cloud.pop);           localStorage.setItem('hesoyam_pop', JSON.stringify(popData)); }
+    if (cloud.bap)        { baData = normalizeNested(cloud.bap, ['items','fotoItems']);            localStorage.setItem('hesoyam_bap_v1', JSON.stringify(baData)); }
+    if (cloud.adj)        { adjData = normalizeNested(cloud.adj, ['items']);           localStorage.setItem('hesoyam_adj_v1', JSON.stringify(adjData)); }
+    if (cloud.handover)   { handoverData = normalizeNested(cloud.handover, ['items','resiList','paket']); localStorage.setItem('hesoyam_handover', JSON.stringify(handoverData)); }
+    if (cloud.suratjalan) { sjData = normalizeNested(cloud.suratjalan, ['items','barang']);     localStorage.setItem('hesoyam_suratjalan', JSON.stringify(sjData)); }
+    if (cloud.pop)        { popData = normalizeNested(cloud.pop, ['items']);           localStorage.setItem('hesoyam_pop', JSON.stringify(popData)); }
     if (cloud.sop)        { sopData = toArray(cloud.sop);           localStorage.setItem('hesoyam_sop', JSON.stringify(sopData)); }
     if (cloud.kontrak)    { kontrakData = toArray(cloud.kontrak);   localStorage.setItem('hesoyam_kontrak', JSON.stringify(kontrakData)); }
     if (cloud.komplain)   { komplainData = toArray(cloud.komplain); localStorage.setItem('hesoyam_komplain', JSON.stringify(komplainData)); }
-    if (cloud.keuangan)   { keuData = toArray(cloud.keuangan);      localStorage.setItem('hesoyam_keuangan_v2', JSON.stringify(keuData)); }
+    if (cloud.keuangan)   { keuData = normalizeKeu(cloud.keuangan);      localStorage.setItem('hesoyam_keuangan_v2', JSON.stringify(keuData)); }
     if (cloud.kurir)      { kurirList = toArray(cloud.kurir);       localStorage.setItem('hesoyam_kurir', JSON.stringify(kurirList)); }
     if (cloud.jenis)      { jenisList = toArray(cloud.jenis);       localStorage.setItem('hesoyam_jenis', JSON.stringify(jenisList)); }
   } catch(e) { console.warn('applyCloudData error', e); }
