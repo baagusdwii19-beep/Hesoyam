@@ -2943,7 +2943,7 @@ function showPage(p) {
   if (p === 'detail') renderDetail();
   if (p === 'home') { renderHome(); }
   if (p === 'rekap') { setActiveNav('nav-rekap'); setTimeout(enhanceAllSelects, 50); }
-  if (p === 'keuangan') { setActiveNav('nav-keuangan'); }
+  if (p === 'keuangan') { setActiveNav('nav-keuangan'); if (keuUnlocked) { initKeuYear(); renderKeuangan(); } }
   if (p === 'sop') { setActiveNav('nav-sop'); renderSopList(); }
   if (p === 'kontrak') { setActiveNav('nav-kontrak'); renderKontrakList(); }
   if (p === 'komplain') { setActiveNav('nav-komplain'); renderKomplainList(); }
