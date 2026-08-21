@@ -336,6 +336,8 @@ textarea{resize:vertical;min-height:60px;}
 .sj-info-table td{padding:3px 5px;vertical-align:top;border:none;}
 .sj-info-table .sj-lbl{width:90px;font-weight:bold;}
 .sj-info-table .sj-sep{width:12px;}
+.opname-fbtn{flex:1;padding:8px;border:1px solid var(--border);background:var(--bg);border-radius:8px;font-size:12px;font-weight:600;color:var(--text3);cursor:pointer;transition:all .15s;}
+.opname-fbtn.active{background:var(--purple);color:#fff;border-color:var(--purple);}
 @keyframes scanFlashPop{0%{opacity:0;transform:scale(.7);}15%{opacity:1;transform:scale(1.05);}30%{transform:scale(1);}80%{opacity:1;}100%{opacity:0;}}
 .scan-flash-show{display:flex !important;animation:scanFlashPop 1s ease-out forwards;}
 #scan-flash.ok{background:rgba(22,163,74,.82);}
@@ -1062,7 +1064,7 @@ input[type=file]{display:none;}
       <button class="login-btn" onclick="backToLogin()" style="margin-top:8px;"><i class="ti ti-arrow-left"></i> Kembali ke Login</button>
     </div>
 
-    <div class="login-foot">PT Bisnis Indo Inovatif · GII-BOX Fulfillment Center</div>
+    <div class="login-foot">By Bagus Dwi Setyanto</div>
   </div>
 </div>
 
@@ -2769,6 +2771,8 @@ input[type=file]{display:none;}
       <div style="padding:0 16px 12px;display:flex;gap:8px;flex-wrap:wrap;">
         <input type="text" id="aset-search" class="search-input" style="flex:1;min-width:180px;" placeholder="Cari nama / No ARF..." oninput="renderAsetList()"/>
         <select id="aset-filter-status" class="filter-select" onchange="renderAsetList()"><option value="">Semua Status</option></select>
+        <select id="aset-filter-kode" class="filter-select" onchange="renderAsetList()"><option value="">Semua Kode</option></select>
+        <select id="aset-filter-tahun" class="filter-select" onchange="renderAsetList()"><option value="">Semua Tahun</option></select>
         <button class="btn btn-success" onclick="exportAsetExcel()"><i class="ti ti-file-spreadsheet"></i><span> Excel</span></button>
         <button class="btn" onclick="downloadAsetTemplate()"><i class="ti ti-download"></i><span> Template</span></button>
         <label class="btn" style="cursor:pointer;"><i class="ti ti-upload"></i><span> Import</span><input type="file" accept=".xlsx,.xls" onchange="importAsetExcel(this)" style="display:none;"/></label>
@@ -4651,14 +4655,56 @@ function saveAset() {
   renderAsetList();
 }
 
+// ekstrak KODE dari No ARF (mis. ARF/SDA/GPW/2025/01/3467 -> SDA)
+function getArfKode(arf) {
+  if(!arf) return '';
+  // ambil segmen huruf setelah ARF (pisah / atau -)
+  const parts = String(arf).toUpperCase().split(/[\/\-\s]+/).filter(Boolean);
+  // cari segmen huruf-saja yang bukan "ARF"
+  for(let i=0;i<parts.length;i++){
+    if(parts[i]==='ARF') continue;
+    if(/^[A-Z]{2,}$/.test(parts[i])) return parts[i];  // segmen huruf (SDA, GIM, dll)
+  }
+  return '';
+}
+// ekstrak TAHUN dari No ARF (cari 4 digit 20xx)
+function getArfTahun(arf) {
+  if(!arf) return '';
+  const m = String(arf).match(/(20\d{2})/);
+  return m ? m[1] : '';
+}
+function populateAsetFilterKode() {
+  const sel = document.getElementById('aset-filter-kode'); if(!sel) return;
+  const cur = sel.value;
+  const kodes = [...new Set(asetData.map(a=>getArfKode(a.arf)).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Semua Kode</option>' + kodes.map(k=>'<option>'+esc(k)+'</option>').join('');
+  if(cur && kodes.includes(cur)) sel.value = cur;
+}
+function populateAsetFilterTahun() {
+  const sel = document.getElementById('aset-filter-tahun'); if(!sel) return;
+  const cur = sel.value;
+  const tahuns = [...new Set(asetData.map(a=>getArfTahun(a.arf)).filter(Boolean))].sort().reverse();
+  sel.innerHTML = '<option value="">Semua Tahun</option>' + tahuns.map(t=>'<option>'+esc(t)+'</option>').join('');
+  if(cur && tahuns.includes(cur)) sel.value = cur;
+}
+
 function renderAsetList() {
   populateAsetFilterStatus();
+  populateAsetFilterKode();
+  populateAsetFilterTahun();
   document.getElementById('aset-st-total').textContent = asetData.length;
   document.getElementById('aset-st-baik').textContent = asetData.filter(a=>(a.status||'').toLowerCase()==='baik').length;
   document.getElementById('aset-st-rusak').textContent = asetData.filter(a=>{const s=(a.status||'').toLowerCase();return s!=='baik';}).length;
   const q = (document.getElementById('aset-search').value||'').toLowerCase();
   const fs = document.getElementById('aset-filter-status').value;
-  let filtered = asetData.filter(a => (!q || (a.nama||'').toLowerCase().includes(q) || (a.arf||'').toLowerCase().includes(q)) && (!fs || a.status===fs));
+  const fk = document.getElementById('aset-filter-kode').value;
+  const ft = document.getElementById('aset-filter-tahun').value;
+  let filtered = asetData.filter(a =>
+    (!q || (a.nama||'').toLowerCase().includes(q) || (a.arf||'').toLowerCase().includes(q)) &&
+    (!fs || a.status===fs) &&
+    (!fk || getArfKode(a.arf)===fk) &&
+    (!ft || getArfTahun(a.arf)===ft)
+  );
   filtered.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const c = document.getElementById('aset-list-body');
   if(!filtered.length){ c.innerHTML = '<div class="ba-empty"><i class="ti ti-building-warehouse" style="font-size:42px;color:var(--text3);"></i><p>'+(asetData.length===0?'Belum ada aset. Klik "Tambah Aset".':'Tidak ada hasil.')+'</p></div>'; return; }
@@ -4914,10 +4960,14 @@ function startOpname() {
     petugas: petugas,
     mulai: Date.now(),
     hasil: {},  // { asetId: {status, waktu} }
-    selesai: false
+    status: 'draft'  // draft -> selesai -> approved
   };
+  opnameFilter = 'all';
   renderOpnameActive();
 }
+
+let opnameFilter = 'all'; // all | done | belum
+function setOpnameFilter(f) { opnameFilter = f; renderOpnameActive(); }
 
 function renderOpnameActive() {
   document.getElementById('opname-history-panel').style.display = 'none';
@@ -4934,18 +4984,38 @@ function renderOpnameActive() {
   html += '<div class="stat-card"><div class="stat-val">'+total+'</div><div class="stat-lbl">Total Aset</div></div></div>';
   html += '<div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-primary" style="flex:1;" onclick="openScanner()"><i class="ti ti-scan"></i> Scan QR</button>';
   html += '<button class="btn" style="flex:1;" onclick="manualOpname()"><i class="ti ti-keyboard"></i> Input Manual</button></div>';
-  html += '<button class="btn btn-success" style="width:100%;margin-top:8px;" onclick="finishOpname()"><i class="ti ti-check"></i> Selesai & Simpan</button>';
+  // Pause (simpan draft, lanjut nanti) + Selesai
+  html += '<div style="display:flex;gap:8px;margin-top:8px;">';
+  html += '<button class="btn" style="flex:1;background:#fef3c7;color:#d97706;border-color:#fde68a;" onclick="pauseOpname()"><i class="ti ti-clock"></i> Pause & Simpan</button>';
+  html += '<button class="btn btn-success" style="flex:1;" onclick="finishOpname()"><i class="ti ti-check"></i> Selesai</button>';
   html += '</div>';
-  // list of assets with check state
-  html += '<div class="sec-title" style="margin-bottom:8px;">Daftar Aset</div>';
-  html += '<div>' + asetData.map(a => {
-    const done = activeOpname.hasil[a.id];
-    return '<div class="ba-card" style="display:flex;gap:10px;align-items:center;'+(done?'border-left:3px solid #16a34a;':'border-left:3px solid #e5e7eb;opacity:.7;')+'">' +
-      '<i class="ti '+(done?'ti-circle-check':'ti-circle')+'" style="font-size:22px;color:'+(done?'#16a34a':'#cbd5e1')+';"></i>' +
-      '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:13px;">'+esc(a.nama)+'</div><div style="font-size:11px;color:var(--text3);">'+esc(a.arf)+'</div></div>' +
-      (done?'<span class="pill" style="background:#dcfce7;color:#16a34a;">'+esc(done.status||a.status)+'</span>':'<span class="pill" style="background:#f1f5f9;color:#64748b;">belum</span>') +
-    '</div>';
-  }).join('') + '</div>';
+  html += '<div style="font-size:11px;color:var(--text3);text-align:center;margin-top:6px;">Pause = simpan draft, bisa dilanjut besok. Selesai = tinggal approve.</div>';
+  html += '</div>';
+  // filter sudah/belum
+  html += '<div style="display:flex;gap:6px;margin-bottom:10px;">';
+  html += '<button class="opname-fbtn'+(opnameFilter==='all'?' active':'')+'" onclick="setOpnameFilter(\'all\')">Semua ('+total+')</button>';
+  html += '<button class="opname-fbtn'+(opnameFilter==='done'?' active':'')+'" onclick="setOpnameFilter(\'done\')">Sudah ('+scanned+')</button>';
+  html += '<button class="opname-fbtn'+(opnameFilter==='belum'?' active':'')+'" onclick="setOpnameFilter(\'belum\')">Belum ('+belum+')</button>';
+  html += '</div>';
+  // list of assets with check state (filtered)
+  let listAset = asetData.filter(a => {
+    const done = !!activeOpname.hasil[a.id];
+    if(opnameFilter==='done') return done;
+    if(opnameFilter==='belum') return !done;
+    return true;
+  });
+  if(listAset.length===0){
+    html += '<div class="ba-empty" style="padding:24px;"><i class="ti ti-circle-check" style="font-size:36px;color:#16a34a;"></i><p>'+(opnameFilter==='belum'?'Semua aset sudah dicek! 🎉':'Tidak ada aset di filter ini.')+'</p></div>';
+  } else {
+    html += '<div>' + listAset.map(a => {
+      const done = activeOpname.hasil[a.id];
+      return '<div class="ba-card" style="display:flex;gap:10px;align-items:center;'+(done?'border-left:3px solid #16a34a;':'border-left:3px solid #e5e7eb;opacity:.75;')+'">' +
+        '<i class="ti '+(done?'ti-circle-check':'ti-circle')+'" style="font-size:22px;color:'+(done?'#16a34a':'#cbd5e1')+';"></i>' +
+        '<div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:13px;">'+esc(a.nama)+'</div><div style="font-size:11px;color:var(--text3);">'+esc(a.arf)+'</div></div>' +
+        (done?'<span class="pill" style="background:#dcfce7;color:#16a34a;">✓ '+esc(done.status||a.status)+'</span>':'<button class="pill" style="background:#f1f5f9;color:#64748b;border:none;cursor:pointer;" onclick="markAsetScanned(\''+esc(a.arf)+'\')">tandai ✓</button>') +
+      '</div>';
+    }).join('') + '</div>';
+  }
   panel.innerHTML = html;
 }
 
@@ -4978,23 +5048,76 @@ function cancelOpname() {
   renderOpnameList();
 }
 
-function finishOpname() {
-  if(!activeOpname) return;
+// simpan data sesi aktif ke opnameData (upsert)
+function persistActiveOpname() {
   const scanned = Object.keys(activeOpname.hasil).length;
-  if(scanned===0){ if(!confirm('Belum ada aset yang dicek. Tetap simpan?')) return; }
-  activeOpname.selesai = true;
-  activeOpname.selesaiAt = Date.now();
   activeOpname.totalAset = asetData.length;
   activeOpname.ditemukan = scanned;
-  // record which assets were missing
   activeOpname.hilang = asetData.filter(a=>!activeOpname.hasil[a.id]).map(a=>({arf:a.arf,nama:a.nama}));
-  opnameData.unshift(activeOpname);
+  const idx = opnameData.findIndex(o=>o.id===activeOpname.id);
+  if(idx>=0) opnameData[idx] = activeOpname;
+  else opnameData.unshift(activeOpname);
   saveOpnameData();
+}
+
+// PAUSE: simpan sebagai draft, bisa dilanjut nanti
+function pauseOpname() {
+  if(!activeOpname) return;
+  activeOpname.status = 'draft';
+  activeOpname.updatedAt = Date.now();
+  persistActiveOpname();
   activeOpname = null;
   document.getElementById('opname-active-panel').style.display='none';
   document.getElementById('opname-history-panel').style.display='block';
   renderOpnameList();
-  alert('Stock opname tersimpan.');
+  alert('Opname disimpan sebagai draft. Bisa dilanjutkan kapan saja dari riwayat.');
+}
+
+// SELESAI: tandai selesai (menunggu approve)
+function finishOpname() {
+  if(!activeOpname) return;
+  const scanned = Object.keys(activeOpname.hasil).length;
+  const belum = asetData.length - scanned;
+  let msg = 'Selesaikan opname ini?';
+  if(belum>0) msg += '\n\nMasih ada '+belum+' aset yang BELUM dicek (akan tercatat sebagai tidak ditemukan).';
+  if(!confirm(msg)) return;
+  activeOpname.status = 'selesai';
+  activeOpname.selesaiAt = Date.now();
+  persistActiveOpname();
+  activeOpname = null;
+  document.getElementById('opname-active-panel').style.display='none';
+  document.getElementById('opname-history-panel').style.display='block';
+  renderOpnameList();
+  alert('Opname selesai. Menunggu approval.');
+}
+
+// LANJUTKAN draft
+function resumeOpname(id) {
+  const o = opnameData.find(x=>x.id===id); if(!o) return;
+  if(o.status==='approved'){ alert('Opname ini sudah di-approve, tidak bisa diubah.'); return; }
+  activeOpname = o;
+  opnameFilter = 'all';
+  renderOpnameActive();
+}
+
+// APPROVE sesi selesai
+function approveOpname(id) {
+  const o = opnameData.find(x=>x.id===id); if(!o) return;
+  let approver = (currentUser && currentUser.nama) ? currentUser.nama : (prompt('Nama yang meng-approve:')||'-');
+  if(approver==='-' && !confirm('Approve tanpa nama?')) return;
+  o.status = 'approved';
+  o.approvedBy = approver;
+  o.approvedAt = Date.now();
+  saveOpnameData();
+  renderOpnameList();
+  if(document.getElementById('opname-detail-modal').classList.contains('show')) openOpnameDetail(id);
+  alert('Opname di-approve oleh '+approver+'.');
+}
+
+function opnameStatusBadge(status) {
+  if(status==='approved') return '<span class="pill" style="background:#dcfce7;color:#16a34a;"><i class="ti ti-shield-check" style="font-size:10px"></i> Approved</span>';
+  if(status==='selesai') return '<span class="pill" style="background:#dbeafe;color:#2563eb;"><i class="ti ti-check" style="font-size:10px"></i> Selesai · perlu approve</span>';
+  return '<span class="pill" style="background:#fef3c7;color:#d97706;"><i class="ti ti-clock" style="font-size:10px"></i> Draft · berjalan</span>';
 }
 
 function renderOpnameList() {
@@ -5002,9 +5125,15 @@ function renderOpnameList() {
   if(!opnameData.length){ c.innerHTML = '<div class="ba-empty"><i class="ti ti-scan" style="font-size:42px;color:var(--text3);"></i><p>Belum ada riwayat stock opname.</p></div>'; return; }
   c.innerHTML = opnameData.map(o => {
     const hilang = (o.hilang||[]).length;
+    const status = o.status || 'selesai';
+    let btns = '';
+    if(status==='draft') btns = '<button class="btn btn-primary" style="flex:1;font-size:12px;padding:7px;" onclick="event.stopPropagation();resumeOpname(\''+o.id+'\')"><i class="ti ti-player-play"></i> Lanjutkan</button>';
+    else if(status==='selesai') btns = '<button class="btn btn-success" style="flex:1;font-size:12px;padding:7px;" onclick="event.stopPropagation();approveOpname(\''+o.id+'\')"><i class="ti ti-shield-check"></i> Approve</button>';
     return '<div class="ba-card" onclick="openOpnameDetail(\''+o.id+'\')">' +
-      '<div class="ba-card-head"><span class="ba-card-no"><i class="ti ti-clipboard-check" style="color:var(--purple)"></i> Opname '+formatTgl(o.tanggal)+'</span>'+(o.petugas&&o.petugas!=='-'?'<span class="ba-card-date">'+esc(o.petugas)+'</span>':'')+'</div>' +
-      '<div style="font-size:12px;color:var(--text3);margin-top:4px;">Ditemukan '+(o.ditemukan||0)+'/'+(o.totalAset||0)+' aset'+(hilang?' · <span style="color:#dc2626;">'+hilang+' tidak ditemukan</span>':' · <span style="color:#16a34a;">semua lengkap</span>')+'</div>' +
+      '<div class="ba-card-head"><span class="ba-card-no"><i class="ti ti-clipboard-check" style="color:var(--purple)"></i> Opname '+formatTgl(o.tanggal)+'</span>'+opnameStatusBadge(status)+'</div>' +
+      '<div style="font-size:12px;color:var(--text3);margin-top:4px;">'+(o.petugas&&o.petugas!=='-'?esc(o.petugas)+' · ':'')+'Dicek '+(o.ditemukan||0)+'/'+(o.totalAset||0)+' aset'+(hilang?' · <span style="color:#dc2626;">'+hilang+' belum/hilang</span>':' · <span style="color:#16a34a;">lengkap</span>')+'</div>' +
+      (o.approvedBy?'<div style="font-size:11px;color:#16a34a;margin-top:2px;"><i class="ti ti-check" style="font-size:10px"></i> Approved oleh '+esc(o.approvedBy)+'</div>':'') +
+      (btns?'<div style="display:flex;gap:6px;margin-top:8px;">'+btns+'</div>':'') +
     '</div>';
   }).join('');
 }
@@ -5015,8 +5144,10 @@ function openOpnameDetail(id) {
   opnameDetailId = id;
   const hilang = o.hilang||[];
   let html = '<div class="disp-det-section">';
+  html += '<div class="disp-det-row"><span class="disp-det-lbl">Status</span><span class="disp-det-val">'+opnameStatusBadge(o.status||'selesai')+'</span></div>';
   html += '<div class="disp-det-row"><span class="disp-det-lbl">Tanggal</span><span class="disp-det-val">'+formatTgl(o.tanggal)+'</span></div>';
   if(o.petugas && o.petugas!=='-') html += '<div class="disp-det-row"><span class="disp-det-lbl">Petugas</span><span class="disp-det-val">'+esc(o.petugas)+'</span></div>';
+  if(o.approvedBy) html += '<div class="disp-det-row"><span class="disp-det-lbl">Approved oleh</span><span class="disp-det-val" style="color:#16a34a;">'+esc(o.approvedBy)+'</span></div>';
   html += '<div class="disp-det-row"><span class="disp-det-lbl">Ditemukan</span><span class="disp-det-val"><b style="color:#16a34a;">'+(o.ditemukan||0)+'</b> / '+(o.totalAset||0)+' aset</span></div>';
   html += '<div class="disp-det-row"><span class="disp-det-lbl">Tidak Ditemukan</span><span class="disp-det-val"><b style="color:'+(hilang.length?'#dc2626':'#16a34a')+';">'+hilang.length+'</b></span></div>';
   html += '</div>';
@@ -5026,6 +5157,9 @@ function openOpnameDetail(id) {
   } else {
     html += '<div style="text-align:center;padding:20px;color:#16a34a;"><i class="ti ti-circle-check" style="font-size:40px;"></i><div style="margin-top:8px;font-weight:600;">Semua aset lengkap ✓</div></div>';
   }
+  const st = o.status || 'selesai';
+  if(st==='draft') html += '<button class="btn btn-primary" style="width:100%;margin-top:14px;" onclick="closeOpnameDetail();resumeOpname(\''+o.id+'\')"><i class="ti ti-player-play"></i> Lanjutkan Opname</button>';
+  else if(st==='selesai') html += '<button class="btn btn-success" style="width:100%;margin-top:14px;" onclick="approveOpname(\''+o.id+'\')"><i class="ti ti-shield-check"></i> Approve Opname Ini</button>';
   document.getElementById('opname-detail-body').innerHTML = html;
   document.getElementById('opname-detail-modal').classList.add('show');
 }
