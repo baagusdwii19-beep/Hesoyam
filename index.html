@@ -3433,6 +3433,18 @@ function normalizeKeu(arr) {
 }
 
 // Normalisasi umum untuk data yang punya nested array (foto, items, dll)
+// pastikan 'hasil' opname tetap object {asetId:{...}}, bukan array (Firebase bisa ubah bentuk)
+function fixHasilObj(h) {
+  if(!h || typeof h !== 'object') return {};
+  if(Array.isArray(h)) {
+    // kalau kebetulan jadi array, buang yang kosong (index-based tak berguna, tapi jangan crash)
+    const obj = {};
+    h.forEach((v,i)=>{ if(v && typeof v==='object') obj[i] = v; });
+    return obj;
+  }
+  return h;
+}
+
 function normalizeNested(arr, fields) {
   return toArray(arr).map(d => {
     if (!d || typeof d !== 'object') return d;
@@ -3460,7 +3472,7 @@ function applyCloudData(cloud, isInitial) {
     if (cloud.disposal)   { disposalData = normalizeNested(cloud.disposal, ['items']); localStorage.setItem('hesoyam_disposal', JSON.stringify(disposalData)); }
     if (cloud.aset)       { asetData = toArray(cloud.aset); localStorage.setItem('hesoyam_aset', JSON.stringify(asetData)); }
     if (cloud.asetstatus) { asetStatusList = toArray(cloud.asetstatus); localStorage.setItem('hesoyam_asetstatus', JSON.stringify(asetStatusList)); }
-    if (cloud.opname)     { opnameData = normalizeNested(cloud.opname, ['hasil']); localStorage.setItem('hesoyam_opname', JSON.stringify(opnameData)); }
+    if (cloud.opname)     { opnameData = toArray(cloud.opname).map(o=>{ if(o && typeof o==='object'){ o.hasil = fixHasilObj(o.hasil); if(o.hilang!==undefined) o.hilang = toArray(o.hilang); } return o; }); localStorage.setItem('hesoyam_opname', JSON.stringify(opnameData)); }
     if (cloud.ppt)        { pptData = toArray(cloud.ppt);           localStorage.setItem('hesoyam_ppt', JSON.stringify(pptData)); }
   } catch(e) { console.warn('applyCloudData error', e); }
   _suppressSync = false;
@@ -3595,7 +3607,7 @@ function refreshCurrentView() {
     else if (id === 'master-perusahaan' && typeof renderPerusahaanList === 'function') renderPerusahaanList();
     else if (id === 'ppt' && typeof renderPptHistory === 'function') renderPptHistory();
     else if (id === 'aset' && typeof renderAsetList === 'function') renderAsetList();
-    else if (id === 'opname' && typeof renderOpnameList === 'function' && !activeOpname) renderOpnameList();
+    else if (id === 'opname' && typeof renderOpnameList === 'function') { if(activeOpname) renderOpnameActive(); else renderOpnameList(); }
   } catch(e) { console.warn('refresh view error', e); }
 }
 
@@ -3689,7 +3701,7 @@ function showPage(p) {
   if (p === 'pop') { setActiveNav('nav-pop'); renderPopRekap(); }
   if (p === 'ppt') { setActiveNav('nav-ppt'); renderPptHistory(); }
   if (p === 'aset') { setActiveNav('nav-aset'); renderAsetList(); }
-  if (p === 'opname') { setActiveNav('nav-opname'); if(!activeOpname){ document.getElementById('opname-active-panel').style.display='none'; document.getElementById('opname-history-panel').style.display='block'; renderOpnameList(); } }
+  if (p === 'opname') { setActiveNav('nav-opname'); if(activeOpname){ renderOpnameActive(); } else { document.getElementById('opname-active-panel').style.display='none'; document.getElementById('opname-history-panel').style.display='block'; renderOpnameList(); } }
   if (p === 'master-kurir') { setActiveNav('nav-master-kurir'); renderKurirList(); const mm = document.getElementById('mn-master'); if (mm) mm.classList.add('active'); }
   if (p === 'master-jenis') { setActiveNav('nav-master-jenis'); renderJenisList(); const mm = document.getElementById('mn-master'); if (mm) mm.classList.add('active'); }
   if (p === 'master-perusahaan') { setActiveNav('nav-master-perusahaan'); renderPerusahaanList(); const mm = document.getElementById('mn-master'); if (mm) mm.classList.add('active'); }
@@ -4970,6 +4982,8 @@ let opnameFilter = 'all'; // all | done | belum
 function setOpnameFilter(f) { opnameFilter = f; renderOpnameActive(); }
 
 function renderOpnameActive() {
+  if(!activeOpname) return;
+  if(!activeOpname.hasil || typeof activeOpname.hasil!=='object' || Array.isArray(activeOpname.hasil)) activeOpname.hasil = fixHasilObj(activeOpname.hasil);
   document.getElementById('opname-history-panel').style.display = 'none';
   const panel = document.getElementById('opname-active-panel');
   panel.style.display = 'block';
@@ -5020,9 +5034,11 @@ function renderOpnameActive() {
 }
 
 function markAsetScanned(arf, viaManual) {
+  if(!activeOpname){ return {ok:false, msg:'Tidak ada sesi opname aktif.'}; }
+  if(!activeOpname.hasil || typeof activeOpname.hasil!=='object' || Array.isArray(activeOpname.hasil)) activeOpname.hasil = fixHasilObj(activeOpname.hasil);
   const a = asetData.find(x => (x.arf||'').toLowerCase()===String(arf).toLowerCase().trim());
   if(!a){
-    document.getElementById('scanner-status') && (document.getElementById('scanner-status').textContent = 'ARF "'+arf+'" tidak ditemukan!');
+    const st = document.getElementById('scanner-status'); if(st) st.textContent = 'ARF "'+arf+'" tidak ditemukan!';
     return {ok:false, msg:'No ARF "'+arf+'" tidak ada di data aset.'};
   }
   if(activeOpname.hasil[a.id]){
@@ -5050,6 +5066,8 @@ function cancelOpname() {
 
 // simpan data sesi aktif ke opnameData (upsert)
 function persistActiveOpname() {
+  if(!activeOpname) return;
+  activeOpname.hasil = fixHasilObj(activeOpname.hasil);
   const scanned = Object.keys(activeOpname.hasil).length;
   activeOpname.totalAset = asetData.length;
   activeOpname.ditemukan = scanned;
@@ -5095,6 +5113,7 @@ function finishOpname() {
 function resumeOpname(id) {
   const o = opnameData.find(x=>x.id===id); if(!o) return;
   if(o.status==='approved'){ alert('Opname ini sudah di-approve, tidak bisa diubah.'); return; }
+  o.hasil = fixHasilObj(o.hasil);  // pastikan object, bukan array
   activeOpname = o;
   opnameFilter = 'all';
   renderOpnameActive();
