@@ -1186,8 +1186,7 @@ input[type=file]{display:none;}
     </div>
     <div class="s-logout" onclick="logout()"><i class="ti ti-logout"></i> Keluar / Logout</div>
     <div class="sidebar-footer">
-      <p>PT Bisnis Indo Inovatif</p>
-      <p>GII-BOX Fulfillment Center</p>
+      <p>By Bagus Dwi Setyanto</p>
     </div>
   </div>
 
@@ -5064,15 +5063,35 @@ let _audioCtx = null;
 function playBeep(type) {
   try {
     if(!_audioCtx) _audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-    const osc = _audioCtx.createOscillator();
-    const gain = _audioCtx.createGain();
-    osc.connect(gain); gain.connect(_audioCtx.destination);
-    // nada beda per tipe: sukses tinggi, dup sedang, error rendah
-    osc.frequency.value = type==='ok' ? 880 : (type==='dup' ? 600 : 300);
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.25, _audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, _audioCtx.currentTime + 0.18);
-    osc.start(); osc.stop(_audioCtx.currentTime + 0.18);
+    if(_audioCtx.state === 'suspended') _audioCtx.resume();
+    const ctx = _audioCtx;
+    const t0 = ctx.currentTime;
+    // helper: mainkan 1 nada
+    function tone(freq, start, dur, wave, vol) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = wave || 'triangle';
+      osc.frequency.value = freq;
+      const s = t0 + start;
+      gain.gain.setValueAtTime(0.0001, s);
+      gain.gain.exponentialRampToValueAtTime(vol||0.6, s + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, s + dur);
+      osc.start(s); osc.stop(s + dur + 0.02);
+    }
+    if(type === 'ok') {
+      // SUKSES: 2 nada naik ceria (ding-ding) - nyaring & wow
+      tone(880, 0, 0.13, 'triangle', 0.7);   // A5
+      tone(1318, 0.11, 0.22, 'triangle', 0.7); // E6 (naik)
+    } else if(type === 'dup') {
+      // SUDAH DISCAN: 2 nada sedang datar (netral)
+      tone(600, 0, 0.12, 'sine', 0.55);
+      tone(600, 0.14, 0.14, 'sine', 0.55);
+    } else {
+      // GAGAL: buzz turun tegas (tebal & jelas)
+      tone(320, 0, 0.16, 'sawtooth', 0.6);
+      tone(180, 0.14, 0.28, 'sawtooth', 0.6); // turun rendah
+    }
   } catch(e){}
 }
 
@@ -5106,6 +5125,8 @@ function updateScanCounter() {
 function openScanner() {
   document.getElementById('scanner-modal').classList.add('show');
   _lastScan = { code:'', time:0 };
+  // unlock audio (kebijakan browser HP: audio perlu gesture user)
+  try { if(!_audioCtx) _audioCtx = new (window.AudioContext||window.webkitAudioContext)(); if(_audioCtx.state==='suspended') _audioCtx.resume(); } catch(e){}
   updateScanCounter();
   document.getElementById('scanner-status').textContent = 'Memulai kamera...';
   if(typeof Html5Qrcode === 'undefined'){ document.getElementById('scanner-status').textContent = 'Library scanner belum termuat. Cek internet.'; return; }
