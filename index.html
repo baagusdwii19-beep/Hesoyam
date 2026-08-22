@@ -1407,9 +1407,8 @@ input[type=file]{display:none;}
             <span style="flex:1">SKU</span>
             <span style="flex:1.4">Nama Barang</span>
             <span style="width:60px">Lokasi</span>
-            <span style="width:42px;text-align:center">Stock Sistem</span>
-            <span style="width:42px;text-align:center">Stock Fisik</span>
-            <span style="width:42px;text-align:center">Selisih</span>
+            <span style="width:48px;text-align:center">Qty</span>
+            <span style="flex:1.2">Keterangan</span>
             <span style="width:22px"></span>
           </div>
           <div id="adj-items-container"></div>
@@ -4157,29 +4156,15 @@ function genNoAdj(tanggalStr) {
 }
 
 // ADJ ITEMS
-function addAdjItem(sku='', nama='', lokasi='', sistem='', fisik='') {
-  adjItems.push({ id: Date.now() + Math.random(), sku, nama, lokasi, sistem, fisik });
+function addAdjItem(sku='', nama='', lokasi='', qty='', ket='') {
+  adjItems.push({ id: Date.now() + Math.random(), sku, nama, lokasi, qty, ket });
   renderAdjItems();
 }
 function removeAdjItem(id) { adjItems = adjItems.filter(i => i.id !== id); renderAdjItems(); }
 function updateAdjItem(id, field, val) {
   const idx = adjItems.findIndex(i => i.id === id);
   if (idx < 0) return;
-  const it = adjItems[idx];
-  it[field] = val;
-  // update only selisih cell of this row (no full re-render, keeps focus)
-  if (field === 'sistem' || field === 'fisik') {
-    const rows = document.querySelectorAll('#adj-items-container .item-row');
-    const row = rows[idx];
-    if (row) {
-      const cell = row.querySelector('.adj-selisih');
-      if (cell) {
-        const sel = getSelisih(it.sistem, it.fisik);
-        cell.textContent = (it.sistem !== '' || it.fisik !== '') ? (sel > 0 ? '+' + sel : String(sel)) : '—';
-        cell.style.color = sel > 0 ? '#057a55' : sel < 0 ? '#c81e1e' : '#888';
-      }
-    }
-  }
+  adjItems[idx][field] = val;
 }
 function getSelisih(sistem, fisik) {
   const s = parseFloat(sistem) || 0;
@@ -4191,9 +4176,6 @@ function renderAdjItems() {
   const c = document.getElementById('adj-items-container');
   c.innerHTML = '';
   adjItems.forEach((it, idx) => {
-    const sel = getSelisih(it.sistem, it.fisik);
-    const selColor = sel > 0 ? 'color:#057a55;' : sel < 0 ? 'color:#c81e1e;' : 'color:#888;';
-    const selStr = sel > 0 ? '+' + sel : String(sel);
     const row = document.createElement('div');
     row.className = 'item-row';
     row.style.alignItems = 'center';
@@ -4202,9 +4184,8 @@ function renderAdjItems() {
       '<input type="text" placeholder="SKU" value="' + esc(it.sku) + '" oninput="updateAdjItem(' + it.id + ',\'sku\',this.value)" style="flex:1;font-size:11px;"/>' +
       '<input type="text" placeholder="Nama barang" value="' + esc(it.nama) + '" oninput="updateAdjItem(' + it.id + ',\'nama\',this.value)" style="flex:1.4;font-size:11px;"/>' +
       '<input type="text" placeholder="Lokasi" value="' + esc(it.lokasi || '') + '" oninput="updateAdjItem(' + it.id + ',\'lokasi\',this.value)" style="width:60px;font-size:11px;"/>' +
-      '<input type="number" placeholder="0" value="' + esc(it.sistem) + '" oninput="updateAdjItem(' + it.id + ',\'sistem\',this.value)" style="width:42px;font-size:11px;text-align:center;"/>' +
-      '<input type="number" placeholder="0" value="' + esc(it.fisik) + '" oninput="updateAdjItem(' + it.id + ',\'fisik\',this.value)" style="width:42px;font-size:11px;text-align:center;"/>' +
-      '<div class="adj-selisih" style="width:42px;text-align:center;font-size:11px;font-weight:600;' + selColor + '">' + (it.sistem !== '' || it.fisik !== '' ? selStr : '—') + '</div>' +
+      '<input type="number" placeholder="0" value="' + esc(it.qty || '') + '" oninput="updateAdjItem(' + it.id + ',\'qty\',this.value)" style="width:48px;font-size:11px;text-align:center;"/>' +
+      '<input type="text" placeholder="Keterangan" value="' + esc(it.ket || '') + '" oninput="updateAdjItem(' + it.id + ',\'ket\',this.value)" style="flex:1.2;font-size:11px;"/>' +
       '<button class="btn-del" onclick="removeAdjItem(' + it.id + ')" title="Hapus"><i class="ti ti-x"></i></button>';
     c.appendChild(row);
   });
@@ -4274,19 +4255,15 @@ function switchAdjTab(t) {
 function buildAdjDocHTML(b) {
   const items = b.items || [];
   const rows = items.length === 0
-    ? '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:10px;font-size:10px;">—</td></tr>'
+    ? '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:10px;font-size:10px;">—</td></tr>'
     : items.map((it, i) => {
-        const sel = getSelisih(it.sistem, it.fisik);
-        const selStr = sel > 0 ? '+' + sel : String(sel);
-        const selStyle = sel > 0 ? 'color:#057a55;font-weight:bold;' : sel < 0 ? 'color:#c81e1e;font-weight:bold;' : 'color:#888;';
         return '<tr>' +
           '<td class="ctr">' + (i+1) + '</td>' +
           '<td>' + esc(it.sku) + '</td>' +
           '<td>' + esc(it.nama) + '</td>' +
           '<td class="ctr">' + esc(it.lokasi || '—') + '</td>' +
-          '<td class="ctr">' + (it.sistem !== '' ? it.sistem : '—') + '</td>' +
-          '<td class="ctr">' + (it.fisik !== '' ? it.fisik : '—') + '</td>' +
-          '<td class="ctr" style="' + selStyle + '">' + (it.sistem !== '' || it.fisik !== '' ? selStr : '—') + '</td>' +
+          '<td class="ctr">' + (it.qty !== '' && it.qty != null ? esc(it.qty) : '—') + '</td>' +
+          '<td>' + esc(it.ket || '—') + '</td>' +
           '</tr>';
       }).join('');
 
@@ -4318,13 +4295,13 @@ function buildAdjDocHTML(b) {
         '<th style="width:90px">SKU</th>' +
         '<th>NAMA BARANG</th>' +
         '<th style="width:70px">LOKASI</th>' +
-        '<th style="width:50px">STOCK SISTEM</th>' +
-        '<th style="width:50px">STOCK FISIK</th>' +
-        '<th style="width:50px">SELISIH</th>' +
+        '<th style="width:45px">QTY</th>' +
+        '<th style="width:110px">KETERANGAN</th>' +
       '</tr></thead>' +
       '<tbody>' + rows + '</tbody>' +
     '</table>' +
-    '<div class="doc-alasan"><strong>KETERANGAN :</strong> ' + esc(b.keterangan || '—') + '</div>' +
+    (b.keterangan ? '<div class="doc-alasan"><strong>Keterangan :</strong> ' + esc(b.keterangan) + '</div>' : '') +
+    '<div class="doc-closing" style="margin-top:14px;font-size:11px;line-height:1.6;text-align:justify;">Demikian Berita Acara Adjustment ini dibuat dengan sebenar-benarnya berdasarkan kondisi fisik barang di lapangan, untuk dapat dipergunakan sebagaimana mestinya.</div>' +
     '<div class="doc-sign" style="margin-top:28px;">' +
       '<div class="doc-sign-box"><div class="sign-role">Dibuat Oleh,<br>&nbsp;</div><div class="sign-line">' + esc(b.dibuat || '.........................') + '</div></div>' +
       '<div class="doc-sign-box"><div class="sign-role">Mengetahui,<br>&nbsp;</div><div class="sign-line">' + esc(b.disetujui || '.........................') + '</div></div>' +
@@ -4349,7 +4326,7 @@ function getAdjFormData() {
     dibuat: document.getElementById('adj-dibuat').value,
     disetujui: document.getElementById('adj-disetujui').value,
     pt: (document.getElementById('adj-pt')||{}).value || 'BII',
-    items: adjItems.map(i => ({ sku: i.sku, nama: i.nama, lokasi: i.lokasi, sistem: i.sistem, fisik: i.fisik })),
+    items: adjItems.map(i => ({ sku: i.sku, nama: i.nama, lokasi: i.lokasi, qty: i.qty, ket: i.ket })),
     fotoBA: adjFotoBA,
     fotoItems: adjFotoItems.map(f => f.src)
   };
@@ -4372,7 +4349,7 @@ function saveAdj_btn() {
     dibuat: document.getElementById('adj-dibuat').value.trim(),
     disetujui: document.getElementById('adj-disetujui').value.trim(),
     pt: (document.getElementById('adj-pt')||{}).value || 'BII',
-    items: adjItems.map(i => ({ sku: i.sku, nama: i.nama, lokasi: i.lokasi, sistem: i.sistem, fisik: i.fisik })),
+    items: adjItems.map(i => ({ sku: i.sku, nama: i.nama, lokasi: i.lokasi, qty: i.qty, ket: i.ket })),
     fotoBA: adjFotoBA,
     fotoItems: adjFotoItems.map(f => f.src),
     createdAt: adjEditingId ? (adjData.find(b => b.id === adjEditingId) || {}).createdAt || Date.now() : Date.now()
@@ -4423,9 +4400,6 @@ function renderAdjList() {
     return;
   }
   c.innerHTML = filtered.map(b => {
-    const selTotal = (b.items||[]).reduce((s,i) => s + getSelisih(i.sistem, i.fisik), 0);
-    const selStr = selTotal > 0 ? '+' + selTotal : String(selTotal);
-    const selColor = selTotal > 0 ? 'var(--green)' : selTotal < 0 ? 'var(--red)' : 'var(--text3)';
     return '<div class="ba-card" onclick="openAdjDetail(\'' + b.id + '\')">' +
       '<div class="ba-card-head"><span class="ba-card-no"><i class="ti ti-adjustments-horizontal" style="color:var(--purple)"></i>' + esc(b.noAdj) + '</span><span class="ba-card-date">' + formatTgl(b.tanggal) + '</span></div>' +
       '<div class="ba-card-info" style="margin-bottom:5px;"><strong>' + esc(b.jenis) + '</strong> &nbsp;·&nbsp; ' + esc(b.lokasi) + ' &nbsp;·&nbsp; ' + (b.items||[]).length + ' item</div>' +
@@ -4502,11 +4476,10 @@ async function _doExportAdjExcel(b) {
     ['Gudang / Lokasi', ':', b.lokasi||''],
     ['PIC / Penanggung Jawab', ':', b.pic||''],
     [],
-    ['NO','SKU','NAMA BARANG','LOKASI','Stock Sistem','Stock Fisik','SELISIH']
+    ['NO','SKU','NAMA BARANG','LOKASI','QTY','KETERANGAN']
   ];
   (b.items||[]).forEach((it,i) => {
-    const sel = getSelisih(it.sistem, it.fisik);
-    wsData.push([i+1, it.sku, it.nama, it.lokasi||'', parseFloat(it.sistem)||0, parseFloat(it.fisik)||0, sel]);
+    wsData.push([i+1, it.sku, it.nama, it.lokasi||'', it.qty||'', it.ket||'']);
   });
   wsData.push([],['KETERANGAN :', b.keterangan||''],[],['Dibuat Oleh','','','','','Disetujui Oleh'],[],[b.dibuat||'','','','','',b.disetujui||'']);
   const ws1 = XLSX.utils.aoa_to_sheet(wsData);
@@ -4544,11 +4517,8 @@ function printAdjDetail() { const b = adjData.find(d => d.id === adjCurrentId); 
 function printAdjDocData(b) {
   const items = b.items || [];
   const rows = items.map((it,i) => {
-    const sel = getSelisih(it.sistem, it.fisik);
-    const selStr = sel > 0 ? '+'+sel : String(sel);
-    const sc = sel > 0 ? 'color:#057a55;font-weight:bold' : sel < 0 ? 'color:#c81e1e;font-weight:bold' : '';
-    return '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+esc(it.sku)+'</td><td>'+esc(it.nama)+'</td><td style="text-align:center">'+esc(it.lokasi||'—')+'</td><td style="text-align:center">'+(it.sistem||'—')+'</td><td style="text-align:center">'+(it.fisik||'—')+'</td><td style="text-align:center;'+sc+'">'+selStr+'</td></tr>';
-  }).join('') || '<tr><td colspan="7" style="text-align:center;color:#aaa">—</td></tr>';
+    return '<tr><td style="text-align:center">'+(i+1)+'</td><td>'+esc(it.sku)+'</td><td>'+esc(it.nama)+'</td><td style="text-align:center">'+esc(it.lokasi||'—')+'</td><td style="text-align:center">'+(it.qty!==''&&it.qty!=null?esc(it.qty):'—')+'</td><td>'+esc(it.ket||'—')+'</td></tr>';
+  }).join('') || '<tr><td colspan="6" style="text-align:center;color:#aaa">—</td></tr>';
   const allFotos = [];
   if (b.fotoBA) allFotos.push(b.fotoBA);
   (b.fotoItems||[]).forEach(src => allFotos.push(src));
@@ -4563,8 +4533,9 @@ function printAdjDocData(b) {
   w.document.write('<img src="'+(PT_KOPS[b.pt]||PT_KOPS.BII).head+'" style="width:100%;display:block;margin-bottom:14px;"/>');
   w.document.write('<div style="text-align:center;margin-bottom:16px;"><div style="font-size:22px;font-weight:bold;text-decoration:underline;text-underline-offset:4px;margin-bottom:6px;">BERITA ACARA</div><div style="border:1.5px solid #2d6a4f;border-radius:2px;padding:6px 10px;font-size:13px;font-family:Arial,sans-serif;letter-spacing:.3px;">'+esc(b.noAdj)+'</div></div>');
   w.document.write('<div style="margin-bottom:12px;"><div><span class="dm-l">Pada hari</span><span class="dm-s">:</span>'+esc(formatTgl(b.tanggal))+'</div><div><span class="dm-l">Jenis Adjustment</span><span class="dm-s">:</span>'+esc(b.jenis)+'</div><div><span class="dm-l">Gudang / Lokasi</span><span class="dm-s">:</span>'+esc(b.lokasi)+'</div><div><span class="dm-l">PIC / Penanggung Jawab</span><span class="dm-s">:</span>'+esc(b.pic)+'</div></div>');
-  w.document.write('<table><thead><tr><th style="width:24px">NO</th><th style="width:90px">SKU</th><th>NAMA BARANG</th><th style="width:60px">LOKASI</th><th style="width:54px">Stock Sistem</th><th style="width:54px">Stock Fisik</th><th style="width:50px">SELISIH</th></tr></thead><tbody>'+rows+'</tbody></table>');
-  w.document.write('<p style="margin-top:10px;font-size:11.5px;"><strong>KETERANGAN :</strong> '+esc(b.keterangan)+'</p>');
+  w.document.write('<table><thead><tr><th style="width:24px">NO</th><th style="width:90px">SKU</th><th>NAMA BARANG</th><th style="width:60px">LOKASI</th><th style="width:45px">QTY</th><th style="width:120px">KETERANGAN</th></tr></thead><tbody>'+rows+'</tbody></table>');
+  if(b.keterangan) w.document.write('<p style="margin-top:10px;font-size:11.5px;"><strong>Keterangan :</strong> '+esc(b.keterangan)+'</p>');
+  w.document.write('<p style="margin-top:12px;font-size:11.5px;text-align:justify;line-height:1.6;">Demikian Berita Acara Adjustment ini dibuat dengan sebenar-benarnya berdasarkan kondisi fisik barang di lapangan, untuk dapat dipergunakan sebagaimana mestinya.</p>');
   w.document.write('<div class="sign-area"><div class="sign-box"><div class="sign-role">Dibuat Oleh,<br>&nbsp;</div><div class="sign-line">'+esc(b.dibuat||'.........................')+'</div></div><div class="sign-box"><div class="sign-role">Mengetahui,<br>&nbsp;</div><div class="sign-line">'+esc(b.disetujui||'.........................')+'</div></div></div>');
   w.document.write(fotoHTML+'</body></html>');
   w.document.close(); setTimeout(()=>w.print(),500);
