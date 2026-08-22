@@ -2776,7 +2776,7 @@ input[type=file]{display:none;}
         <button class="btn btn-success" onclick="exportAsetExcel()"><i class="ti ti-file-spreadsheet"></i><span> Excel</span></button>
         <button class="btn" onclick="downloadAsetTemplate()"><i class="ti ti-download"></i><span> Template</span></button>
         <label class="btn" style="cursor:pointer;"><i class="ti ti-upload"></i><span> Import</span><input type="file" accept=".xlsx,.xls" onchange="importAsetExcel(this)" style="display:none;"/></label>
-        <button class="btn" onclick="printAllBarcodes()"><i class="ti ti-qrcode"></i><span> Cetak Semua QR</span></button>
+        <button class="btn" onclick="printAllBarcodes()"><i class="ti ti-qrcode"></i><span> Cetak QR</span></button>
       </div>
       <div class="ba-list-body" id="aset-list-body"></div>
     </div>
@@ -4786,18 +4786,36 @@ function printAsetBarcode() {
 }
 function printAllBarcodes() {
   if(asetData.length===0){ alert('Belum ada aset.'); return; }
-  printBarcodeLabels(asetData);
+  // hormati filter yang aktif (kode/tahun/status/cari) biar bisa cetak sebagian
+  const q = (document.getElementById('aset-search').value||'').toLowerCase();
+  const fs = document.getElementById('aset-filter-status').value;
+  const fk = document.getElementById('aset-filter-kode').value;
+  const ft = document.getElementById('aset-filter-tahun').value;
+  let list = asetData.filter(a =>
+    (!q || (a.nama||'').toLowerCase().includes(q) || (a.arf||'').toLowerCase().includes(q)) &&
+    (!fs || a.status===fs) && (!fk || getArfKode(a.arf)===fk) && (!ft || getArfTahun(a.arf)===ft)
+  );
+  if(list.length===0){ alert('Tidak ada aset di filter ini.'); return; }
+  const adaFilter = q||fs||fk||ft;
+  let msg = 'Cetak QR untuk '+list.length+' aset';
+  if(adaFilter) msg += ' (sesuai filter aktif)';
+  msg += '?';
+  if(list.length>100) msg += '\n\n⚠️ Jumlahnya banyak ('+list.length+'). Kalau HP/browser terasa berat, sebaiknya cetak per bagian pakai filter Kode atau Tahun dulu.';
+  if(!confirm(msg)) return;
+  printBarcodeLabels(list);
 }
 function printBarcodeLabels(list) {
+  if(!list || list.length===0){ alert('Tidak ada aset untuk dicetak.'); return; }
   const w = window.open('','_blank');
   if(!w){ alert('Popup diblokir. Izinkan popup untuk cetak.'); return; }
+  const codes = list.map(a=>({ arf:a.arf, nama:a.nama, lokasi:a.lokasi||'' }));
   w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>QR Code Aset</title>');
   w.document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>');
-  // Label 6cm x 3.5cm: QR di kiri, info di kanan
   w.document.write('<style>' +
     '*{box-sizing:border-box;margin:0;padding:0;}' +
     'body{font-family:Arial,Helvetica,sans-serif;padding:6mm;background:#fff;}' +
-    '.sheet{display:flex;flex-wrap:wrap;gap:0;}' +
+    '#prog{position:fixed;top:0;left:0;right:0;background:#6c3fc5;color:#fff;padding:10px;text-align:center;font-size:14px;z-index:999;}' +
+    '.sheet{display:flex;flex-wrap:wrap;gap:0;margin-top:40px;}' +
     '.label{width:60mm;height:35mm;padding:2.5mm;border:1px dashed #888;display:flex;flex-direction:row;align-items:center;gap:2.5mm;overflow:hidden;page-break-inside:avoid;break-inside:avoid;}' +
     '.label .qr{width:27mm;height:27mm;flex-shrink:0;display:flex;align-items:center;justify-content:center;}' +
     '.label .qr img,.label .qr canvas{width:27mm !important;height:27mm !important;}' +
@@ -4805,28 +4823,37 @@ function printBarcodeLabels(list) {
     '.label .nm{font-size:8.5pt;font-weight:bold;line-height:1.15;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;}' +
     '.label .arf{font-size:7.5pt;font-weight:600;color:#111;word-break:break-all;line-height:1.1;}' +
     '.label .lo{font-size:7.5pt;color:#444;}' +
-    '@media print{@page{margin:6mm;}body{padding:0;}.label{border:1px dashed #bbb;}}' +
-  '</style></head><body><div class="sheet">');
-  list.forEach((a,i)=>{
-    w.document.write('<div class="label">' +
-      '<div class="qr" id="qr'+i+'"></div>' +
-      '<div class="info">' +
-        '<div class="nm">'+escHtml(a.nama)+'</div>' +
-        '<div class="arf">'+escHtml(a.arf)+'</div>' +
-        (a.lokasi?'<div class="lo">'+escHtml(a.lokasi)+'</div>':'') +
-      '</div>' +
-    '</div>');
-  });
-  w.document.write('</div>');
-  const codes = list.map(a=>a.arf);
-  w.document.write('<scr'+'ipt>window.onload=function(){' +
-    'var codes='+JSON.stringify(codes)+';' +
-    'if(typeof QRCode==="undefined"){document.body.insertAdjacentHTML("afterbegin","<p style=\'color:red;padding:8px\'>QR perlu internet. Buka via GitHub Pages.</p>");return;}' +
-    'codes.forEach(function(code,i){' +
-      'try{new QRCode(document.getElementById("qr"+i),{text:code,width:200,height:200,correctLevel:QRCode.CorrectLevel.M});}catch(e){}' +
-    '});' +
-    'setTimeout(function(){window.print();},600);' +
-  '};<\/scr'+'ipt>');
+    '@media print{@page{margin:6mm;}body{padding:0;}#prog{display:none;}.sheet{margin-top:0;}.label{border:1px dashed #bbb;}}' +
+  '</style></head><body>');
+  w.document.write('<div id="prog">Menyiapkan QR code... 0/'+codes.length+'</div>');
+  w.document.write('<div class="sheet" id="sheet"></div>');
+  // generate BERTAHAP (batch) biar browser tidak hang
+  w.document.write('<scr'+'ipt>' +
+    'var CODES='+JSON.stringify(codes)+';' +
+    'function esc(s){return (s==null?"":String(s)).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}' +
+    'function run(){' +
+      'if(typeof QRCode==="undefined"){document.getElementById("prog").textContent="QR perlu internet. Buka via GitHub Pages.";document.getElementById("prog").style.background="#dc2626";return;}' +
+      'var sheet=document.getElementById("sheet");var prog=document.getElementById("prog");' +
+      'var i=0;var BATCH=15;' +  // 15 QR per batch
+      'function nextBatch(){' +
+        'var end=Math.min(i+BATCH,CODES.length);' +
+        'for(;i<end;i++){' +
+          'var a=CODES[i];' +
+          'var lbl=document.createElement("div");lbl.className="label";' +
+          'var qd=document.createElement("div");qd.className="qr";' +
+          'var info=document.createElement("div");info.className="info";' +
+          'info.innerHTML="<div class=\'nm\'>"+esc(a.nama)+"</div><div class=\'arf\'>"+esc(a.arf)+"</div>"+(a.lokasi?"<div class=\'lo\'>"+esc(a.lokasi)+"</div>":"");' +
+          'lbl.appendChild(qd);lbl.appendChild(info);sheet.appendChild(lbl);' +
+          'try{new QRCode(qd,{text:a.arf,width:150,height:150,correctLevel:QRCode.CorrectLevel.M});}catch(e){qd.innerHTML="<div style=\'font-size:7pt\'>"+esc(a.arf)+"</div>";}' +
+        '}' +
+        'prog.textContent="Menyiapkan QR code... "+i+"/"+CODES.length;' +
+        'if(i<CODES.length){setTimeout(nextBatch,50);}' +  // jeda 50ms antar batch
+        'else{prog.textContent="Selesai! Membuka dialog cetak...";setTimeout(function(){window.print();},600);}' +
+      '}' +
+      'nextBatch();' +
+    '}' +
+    'window.onload=run;' +
+  '<\/scr'+'ipt>');
   w.document.write('</body></html>');
   w.document.close();
 }
