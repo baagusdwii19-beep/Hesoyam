@@ -4404,7 +4404,6 @@ function renderAdjList() {
       '<div class="ba-card-head"><span class="ba-card-no"><i class="ti ti-adjustments-horizontal" style="color:var(--purple)"></i>' + esc(b.noAdj) + '</span><span class="ba-card-date">' + formatTgl(b.tanggal) + '</span></div>' +
       '<div class="ba-card-info" style="margin-bottom:5px;"><strong>' + esc(b.jenis) + '</strong> &nbsp;·&nbsp; ' + esc(b.lokasi) + ' &nbsp;·&nbsp; ' + (b.items||[]).length + ' item</div>' +
       '<span class="pill" style="background:#f0ebff;color:var(--purple);"><i class="ti ti-user" style="font-size:10px"></i> ' + esc(b.pic) + '</span>' +
-      '<span class="pill" style="background:#f0f0f0;color:' + selColor + ';margin-left:4px;font-weight:600;">Selisih: ' + selStr + '</span>' +
       '</div>';
   }).join('');
 }
@@ -8770,17 +8769,17 @@ let rekapSheets = {}; // sheetName -> array of objects
 function handleRekapFile(e) {
   const file = e.target.files[0];
   if (!file) return;
+  if(typeof XLSX==='undefined'){ alert('Library Excel belum termuat. Pastikan ada internet lalu muat ulang halaman.'); e.target.value=''; return; }
   showLoading('Membaca file Excel...', file.name);
   const reader = new FileReader();
+  reader.onerror = () => { hideLoading(); alert('Gagal membaca file.'); };
   reader.onload = ev => {
     setTimeout(() => {
       try {
         const data = new Uint8Array(ev.target.result);
-        rekapWorkbook = XLSX.read(data, { type: 'array' });
-        rekapSheets = {};
-        rekapWorkbook.SheetNames.forEach(name => {
-          rekapSheets[name] = XLSX.utils.sheet_to_json(rekapWorkbook.Sheets[name], { defval: '' });
-        });
+        // Baca struktur workbook saja (nama sheet). Sheet TIDAK langsung di-parse -> hemat & tidak hang.
+        rekapWorkbook = XLSX.read(data, { type: 'array', cellStyles:false, cellHTML:false, cellFormula:false, sheetStubs:false });
+        rekapSheets = {};  // cache kosong; sheet diparse saat dipilih (lazy)
         showRekapFileInfo(file.name, rekapWorkbook.SheetNames);
         populateRekapDropdowns();
       } catch (err) {
@@ -8788,10 +8787,23 @@ function handleRekapFile(e) {
       } finally {
         hideLoading();
       }
-    }, 100);
+    }, 60);
   };
   reader.readAsArrayBuffer(file);
   e.target.value = '';
+}
+
+// LAZY: parse sheet hanya saat dibutuhkan, lalu cache. Mencegah hang di file besar.
+function getRekapSheet(name) {
+  if (!name || !rekapWorkbook) return [];
+  if (rekapSheets[name]) return rekapSheets[name];
+  try {
+    const ws = rekapWorkbook.Sheets[name];
+    if (!ws) return [];
+    // parse sekali & cache (lazy). defval:'' supaya sel kosong tetap ada.
+    rekapSheets[name] = XLSX.utils.sheet_to_json(ws, { defval: '', blankrows: false });
+    return rekapSheets[name];
+  } catch(e) { console.error('parse sheet gagal:', e); return []; }
 }
 
 function showRekapFileInfo(fname, sheetNames) {
@@ -8801,7 +8813,7 @@ function showRekapFileInfo(fname, sheetNames) {
 }
 
 function populateRekapDropdowns() {
-  const names = Object.keys(rekapSheets);
+  const names = (rekapWorkbook && rekapWorkbook.SheetNames) ? rekapWorkbook.SheetNames : [];
   const sheetOpts = '<option value="">— pilih sheet —</option>' + names.map(n => '<option>' + esc(n) + '</option>').join('');
   ['vl-sheet-main','vl-sheet-ref','pv-sheet'].forEach(id => {
     const el = document.getElementById(id);
@@ -8812,9 +8824,21 @@ function populateRekapDropdowns() {
 }
 
 function getColumns(sheetName) {
-  const rows = rekapSheets[sheetName] || [];
-  if (rows.length === 0) return [];
-  return Object.keys(rows[0]);
+  if (!sheetName || !rekapWorkbook) return [];
+  // kalau sheet sudah di-cache, pakai itu
+  if (rekapSheets[sheetName] && rekapSheets[sheetName].length) return Object.keys(rekapSheets[sheetName][0]);
+  // kalau belum: baca HANYA baris header (cepat, tidak parse seluruh sheet)
+  try {
+    const ws = rekapWorkbook.Sheets[sheetName];
+    if (!ws) return [];
+    const headerRows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'', range:0, blankrows:false });
+    // ambil baris pertama yang ada isinya sebagai header
+    for (let i=0;i<Math.min(headerRows.length,5);i++){
+      const r = headerRows[i];
+      if (r && r.some(c=>String(c).trim()!=='')) return r.map(c=>String(c).trim()).filter(Boolean);
+    }
+    return [];
+  } catch(e) { return []; }
 }
 
 function colOpts(cols, multi) {
@@ -8856,12 +8880,12 @@ function _runVlookup() {
 
   // build lookup map from ref sheet
   const refMap = {};
-  (rekapSheets[sRef] || []).forEach(row => {
+  getRekapSheet(sRef).forEach(row => {
     const key = String(row[kRef]).trim();
     if (key && !(key in refMap)) refMap[key] = row;
   });
 
-  const mainRows = rekapSheets[sMain] || [];
+  const mainRows = getRekapSheet(sMain);
   const result = mainRows.map(row => {
     const out = { ...row };
     const key = String(row[kMain]).trim();
@@ -8922,7 +8946,7 @@ function _runRekapTotal() {
     return;
   }
 
-  let rows = (rekapSheets[sheet] || []).slice();
+  let rows = getRekapSheet(sheet).slice();
 
   // optional: map channel/brand via master sheet
   let effectiveChannelCol = channelCol;
@@ -8932,7 +8956,7 @@ function _runRekapTotal() {
     const brandMaster = document.getElementById('pv-map-brand-master').value;
     if (keyMain && keyMaster && brandMaster) {
       const map = {};
-      (rekapSheets[masterSheet] || []).forEach(r => {
+      getRekapSheet(masterSheet).forEach(r => {
         const k = String(r[keyMaster]).trim();
         if (k && !(k in map)) map[k] = r[brandMaster];
       });
