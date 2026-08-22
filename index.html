@@ -4859,49 +4859,66 @@ function printBarcodeLabels(list) {
   const codes = list.map(a=>({ arf:a.arf, nama:a.nama, lokasi:a.lokasi||'' }));
   w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>QR Code Aset</title>');
   w.document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>');
+  // Kertas label 19,5 x 13,5 cm (landscape), grid 3 kolom x 4 baris = 12 slot per halaman.
+  // Tiap slot 6,5 x 3 cm. QR + info di dalam slot.
   w.document.write('<style>' +
     '*{box-sizing:border-box;margin:0;padding:0;}' +
-    'body{font-family:Arial,Helvetica,sans-serif;padding:6mm;background:#fff;}' +
-    '#prog{position:fixed;top:0;left:0;right:0;background:#6c3fc5;color:#fff;padding:10px;text-align:center;font-size:14px;z-index:999;}' +
-    '.sheet{display:flex;flex-wrap:wrap;gap:0;margin-top:40px;}' +
-    '.label{width:60mm;height:35mm;padding:2.5mm;border:1px dashed #888;display:flex;flex-direction:row;align-items:center;gap:2.5mm;overflow:hidden;page-break-inside:avoid;break-inside:avoid;}' +
-    '.label .qr{width:27mm;height:27mm;flex-shrink:0;display:flex;align-items:center;justify-content:center;}' +
-    '.label .qr img,.label .qr canvas{width:27mm !important;height:27mm !important;}' +
-    '.label .info{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:1mm;text-align:left;}' +
-    '.label .nm{font-size:8.5pt;font-weight:bold;line-height:1.15;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;}' +
-    '.label .arf{font-size:7.5pt;font-weight:600;color:#111;word-break:break-all;line-height:1.1;}' +
-    '.label .lo{font-size:7.5pt;color:#444;}' +
-    '@media print{@page{margin:6mm;}body{padding:0;}#prog{display:none;}.sheet{margin-top:0;}.label{border:1px dashed #bbb;}}' +
+    'html,body{background:#fff;}' +
+    'body{font-family:Arial,Helvetica,sans-serif;}' +
+    '#prog{position:fixed;top:0;left:0;right:0;background:#6c3fc5;color:#fff;padding:8px;text-align:center;font-size:13px;z-index:999;}' +
+    // satu halaman = grid 3x4, ukuran kertas pas
+    '.page{width:19.5cm;height:13.5cm;display:grid;grid-template-columns:repeat(3,6.5cm);grid-template-rows:repeat(4,3cm);page-break-after:always;margin:0 auto;}' +
+    '.slot{width:6.5cm;height:3cm;padding:1.5mm 2mm;display:flex;flex-direction:row;align-items:center;gap:2mm;overflow:hidden;}' +
+    // QR ~2cm (muat di tinggi slot 3cm)
+    '.slot .qr{width:20mm;height:20mm;flex-shrink:0;display:flex;align-items:center;justify-content:center;}' +
+    '.slot .qr img,.slot .qr canvas{width:20mm !important;height:20mm !important;}' +
+    '.slot .info{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:0.5mm;text-align:left;}' +
+    '.slot .nm{font-size:7.5pt;font-weight:bold;line-height:1.1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}' +
+    '.slot .arf{font-size:6.5pt;font-weight:600;color:#111;word-break:break-all;line-height:1.05;}' +
+    '.slot .lo{font-size:6.5pt;color:#444;line-height:1.05;}' +
+    '@media print{' +
+      '@page{size:19.5cm 13.5cm;margin:0;}' +  // ukuran kertas persis, tanpa margin
+      '#prog{display:none;}' +
+      '.page{margin:0;}' +
+    '}' +
   '</style></head><body>');
   w.document.write('<div id="prog">Menyiapkan QR code... 0/'+codes.length+'</div>');
-  w.document.write('<div class="sheet" id="sheet"></div>');
-  // generate BERTAHAP (batch) biar browser tidak hang
-  w.document.write('<scr'+'ipt>' +
+  // bagi jadi halaman-halaman berisi 12 slot
+  var pagesHtml = '';
+  for(var pg=0; pg<Math.ceil(codes.length/12); pg++){
+    pagesHtml += '<div class="page">';
+    for(var s=0; s<12; s++){
+      var idx = pg*12 + s;
+      if(idx < codes.length){
+        pagesHtml += '<div class="slot"><div class="qr" id="qr'+idx+'"></div><div class="info" id="info'+idx+'"></div></div>';
+      } else {
+        pagesHtml += '<div class="slot"></div>';  // slot kosong biar grid tetap rapi
+      }
+    }
+    pagesHtml += '</div>';
+  }
+  w.document.write(pagesHtml);
+  w.document.write('<scr'+'ipt>window.onload=function(){' +
     'var CODES='+JSON.stringify(codes)+';' +
     'function esc(s){return (s==null?"":String(s)).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}' +
-    'function run(){' +
-      'if(typeof QRCode==="undefined"){document.getElementById("prog").textContent="QR perlu internet. Buka via GitHub Pages.";document.getElementById("prog").style.background="#dc2626";return;}' +
-      'var sheet=document.getElementById("sheet");var prog=document.getElementById("prog");' +
-      'var i=0;var BATCH=15;' +  // 15 QR per batch
-      'function nextBatch(){' +
-        'var end=Math.min(i+BATCH,CODES.length);' +
-        'for(;i<end;i++){' +
-          'var a=CODES[i];' +
-          'var lbl=document.createElement("div");lbl.className="label";' +
-          'var qd=document.createElement("div");qd.className="qr";' +
-          'var info=document.createElement("div");info.className="info";' +
-          'info.innerHTML="<div class=\'nm\'>"+esc(a.nama)+"</div><div class=\'arf\'>"+esc(a.arf)+"</div>"+(a.lokasi?"<div class=\'lo\'>"+esc(a.lokasi)+"</div>":"");' +
-          'lbl.appendChild(qd);lbl.appendChild(info);sheet.appendChild(lbl);' +
-          'try{new QRCode(qd,{text:a.arf,width:150,height:150,correctLevel:QRCode.CorrectLevel.M});}catch(e){qd.innerHTML="<div style=\'font-size:7pt\'>"+esc(a.arf)+"</div>";}' +
-        '}' +
-        'prog.textContent="Menyiapkan QR code... "+i+"/"+CODES.length;' +
-        'if(i<CODES.length){setTimeout(nextBatch,50);}' +  // jeda 50ms antar batch
-        'else{prog.textContent="Selesai! Membuka dialog cetak...";setTimeout(function(){window.print();},600);}' +
+    'var prog=document.getElementById("prog");' +
+    'if(typeof QRCode==="undefined"){prog.textContent="QR perlu internet. Buka via GitHub Pages.";prog.style.background="#dc2626";return;}' +
+    'var i=0;var BATCH=12;' +
+    'function nextBatch(){' +
+      'var end=Math.min(i+BATCH,CODES.length);' +
+      'for(;i<end;i++){' +
+        'var a=CODES[i];' +
+        'var info=document.getElementById("info"+i);' +
+        'if(info) info.innerHTML="<div class=\'nm\'>"+esc(a.nama)+"</div><div class=\'arf\'>"+esc(a.arf)+"</div>"+(a.lokasi?"<div class=\'lo\'>"+esc(a.lokasi)+"</div>":"");' +
+        'var qd=document.getElementById("qr"+i);' +
+        'if(qd){try{new QRCode(qd,{text:a.arf,width:120,height:120,correctLevel:QRCode.CorrectLevel.M});}catch(e){qd.innerHTML="<div style=\'font-size:6pt\'>"+esc(a.arf)+"</div>";}}' +
       '}' +
-      'nextBatch();' +
+      'prog.textContent="Menyiapkan QR code... "+i+"/"+CODES.length;' +
+      'if(i<CODES.length){setTimeout(nextBatch,50);}' +
+      'else{prog.textContent="Selesai! Membuka dialog cetak...";setTimeout(function(){window.print();},600);}' +
     '}' +
-    'window.onload=run;' +
-  '<\/scr'+'ipt>');
+    'nextBatch();' +
+  '};<\/scr'+'ipt>');
   w.document.write('</body></html>');
   w.document.close();
 }
