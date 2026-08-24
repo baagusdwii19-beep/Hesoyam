@@ -2779,6 +2779,7 @@ input[type=file]{display:none;}
         <button class="btn" onclick="downloadAsetTemplate()"><i class="ti ti-download"></i><span> Template</span></button>
         <label class="btn" style="cursor:pointer;"><i class="ti ti-upload"></i><span> Import</span><input type="file" accept=".xlsx,.xls" onchange="importAsetExcel(this)" style="display:none;"/></label>
         <button class="btn" onclick="printAllBarcodes()"><i class="ti ti-qrcode"></i><span> Cetak QR</span></button>
+        <button class="btn" onclick="openLabelSettings()" title="Atur ukuran & posisi kertas label"><i class="ti ti-ruler-measure"></i><span> Setting Label</span></button>
       </div>
       <div id="aset-hapus-bar" style="display:none;padding:10px 16px;background:#fef2f2;border-top:1px solid #fecaca;border-bottom:1px solid #fecaca;align-items:center;gap:10px;">
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="aset-check-all" onchange="toggleAsetCheckAll(this)"/> Pilih semua</label>
@@ -2788,6 +2789,128 @@ input[type=file]{display:none;}
         <button class="btn" onclick="toggleAsetHapusMode()">Batal</button>
       </div>
       <div class="ba-list-body" id="aset-list-body"></div>
+    </div>
+
+    <!-- SETTING LABEL / KALIBRASI CETAK MODAL -->
+    <div class="sop-modal" id="label-modal">
+      <div class="sop-modal-box" style="max-width:640px;">
+        <div class="sop-modal-head">
+          <div class="sop-modal-title"><i class="ti ti-ruler-measure" style="color:var(--purple)"></i> Setting Kertas Label</div>
+          <button class="sop-modal-close" onclick="closeLabelSettings()"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="sop-modal-body">
+
+          <div class="field-group">
+            <div class="field-label">Preset Kertas Label</div>
+            <select id="lbl-preset" class="filter-select" style="width:100%;" onchange="applyLabelPreset(this.value)">
+              <option value="koala">Label Koala — lembar 19,5 × 13,5 cm, 12 label (diukur dari cetakanmu)</option>
+              <option value="103">Label Undangan 103 standar — lembar 20,5 × 16 cm</option>
+              <option value="121">Label Undangan 121 — lembar 21 × 16 cm</option>
+              <option value="custom">Ukuran Sendiri (isi manual di bawah)</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">Mode Cetak</div>
+            <select id="lbl-mode" class="filter-select" style="width:100%;" onchange="onLabelModeChange()">
+              <option value="a4">Cetak di atas A4 — tanpa setting printer (disarankan)</option>
+              <option value="exact">Ukuran kertas persis — perlu custom paper size di printer</option>
+            </select>
+            <div class="kontrak-upload-hint" id="lbl-mode-hint"></div>
+          </div>
+
+          <div id="lbl-a4-opts">
+            <div class="field-group">
+              <div class="field-label">Posisi lembar label saat masuk printer</div>
+              <select id="lbl-align" class="filter-select" style="width:100%;">
+                <option value="center">Di TENGAH (sudah dicek cocok di printermu)</option>
+                <option value="right">Rapat ke KANAN</option>
+                <option value="left">Rapat ke KIRI</option>
+              </select>
+              <div class="kontrak-upload-hint">Dari hasil cetak uji, lembar labelmu ternyata masuk di posisi tengah — bukan mepet kanan.</div>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <div class="field-label">Koreksi Posisi (kalibrasi)</div>
+            <div style="display:flex;gap:8px;">
+              <div style="flex:1;">
+                <input type="number" id="lbl-offx" step="0.5" placeholder="0"/>
+                <div class="kontrak-upload-hint">Geser mendatar (mm). Minus = ke kiri.</div>
+              </div>
+              <div style="flex:1;">
+                <input type="number" id="lbl-offy" step="0.5" placeholder="0"/>
+                <div class="kontrak-upload-hint">Geser tegak (mm). Minus = ke atas.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:11px 13px;margin-bottom:14px;">
+            <div style="font-size:12.5px;font-weight:600;color:#9a3412;margin-bottom:5px;"><i class="ti ti-arrows-diff"></i> Meleset makin jauh di kolom/baris terakhir?</div>
+            <div style="font-size:12px;color:#7c2d12;line-height:1.6;margin-bottom:8px;">
+              Kalau label pertama sudah pas tapi makin ke kanan / ke bawah makin geser, berarti jarak antar labelnya yang keliru.
+              Ukur melesetnya di <b>label paling pojok</b> (kolom ke-3 dan baris ke-4), tulis di sini — jarak antar label akan dihitung ulang otomatis.
+            </div>
+            <div style="display:flex;gap:8px;align-items:flex-end;">
+              <div style="flex:1;">
+                <input type="number" id="lbl-drift-x" step="0.5" placeholder="0"/>
+                <div class="kontrak-upload-hint">Kolom terakhir meleset ke kanan (mm)</div>
+              </div>
+              <div style="flex:1;">
+                <input type="number" id="lbl-drift-y" step="0.5" placeholder="0"/>
+                <div class="kontrak-upload-hint">Baris terakhir meleset ke bawah (mm)</div>
+              </div>
+              <button class="btn btn-primary" style="margin-bottom:18px;" onclick="applyDriftFix()">Hitung</button>
+            </div>
+          </div>
+
+          <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:11px 13px;margin-bottom:14px;">
+            <div style="font-size:12.5px;font-weight:600;color:#5b21b6;margin-bottom:5px;"><i class="ti ti-target-arrow"></i> Cara kalibrasi (sekali saja)</div>
+            <div style="font-size:12px;color:#4c1d95;line-height:1.65;">
+              1. Klik <b>Cetak Tes</b> di bawah, cetak di <b>kertas HVS biasa</b>.<br/>
+              2. Tumpuk lembar label di atas hasil cetak tes, ratakan sisi kertasnya sama seperti waktu masuk printer.<br/>
+              3. Lihat selisih kotak cetak vs stiker aslinya, lalu isi <b>Koreksi Posisi</b> di atas (mm), Simpan.<br/>
+              4. Cetak tes lagi sampai pas. Setelah itu tinggal Cetak QR — langsung jadi, tanpa atur apa pun.
+            </div>
+            <button class="btn" style="margin-top:9px;" onclick="printLabelCalibration()"><i class="ti ti-printer"></i> Cetak Tes Kalibrasi</button>
+          </div>
+
+          <div class="field-group">
+            <div class="field-label" style="cursor:pointer;" onclick="toggleLabelAdvanced()">
+              <i class="ti ti-chevron-down" id="lbl-adv-arrow"></i> Ukuran Detail (jarang perlu diubah)
+            </div>
+          </div>
+          <div id="lbl-advanced" style="display:none;">
+            <div style="display:flex;gap:8px;margin-bottom:10px;">
+              <div style="flex:1;"><div class="field-label">Kolom</div><input type="number" id="lbl-cols" step="1"/></div>
+              <div style="flex:1;"><div class="field-label">Baris</div><input type="number" id="lbl-rows" step="1"/></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:10px;">
+              <div style="flex:1;"><div class="field-label">Lebar label (mm)</div><input type="number" id="lbl-lw" step="0.5"/></div>
+              <div style="flex:1;"><div class="field-label">Tinggi label (mm)</div><input type="number" id="lbl-lh" step="0.5"/></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:10px;">
+              <div style="flex:1;"><div class="field-label">Jarak antar kolom (mm)</div><input type="number" id="lbl-px" step="0.5"/><div class="kontrak-upload-hint">Kiri label 1 ke kiri label 2</div></div>
+              <div style="flex:1;"><div class="field-label">Jarak antar baris (mm)</div><input type="number" id="lbl-py" step="0.5"/><div class="kontrak-upload-hint">Atas baris 1 ke atas baris 2</div></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:10px;">
+              <div style="flex:1;"><div class="field-label">Margin kiri lembar (mm)</div><input type="number" id="lbl-ml" step="0.5"/></div>
+              <div style="flex:1;"><div class="field-label">Margin atas lembar (mm)</div><input type="number" id="lbl-mt" step="0.5"/></div>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <div style="flex:1;"><div class="field-label">Lebar lembar (mm)</div><input type="number" id="lbl-sw" step="0.5"/></div>
+              <div style="flex:1;"><div class="field-label">Tinggi lembar (mm)</div><input type="number" id="lbl-sh" step="0.5"/></div>
+            </div>
+          </div>
+
+        </div>
+        <div class="sop-modal-foot">
+          <button class="btn" onclick="resetLabelSettings()"><i class="ti ti-rotate"></i> Reset</button>
+          <div style="flex:1;"></div>
+          <button class="btn" onclick="closeLabelSettings()">Batal</button>
+          <button class="btn btn-primary" onclick="saveLabelSettings()"><i class="ti ti-device-floppy"></i> Simpan</button>
+        </div>
+      </div>
     </div>
 
     <!-- ASET FORM MODAL -->
@@ -4852,57 +4975,165 @@ function printAllBarcodes() {
   if(!confirm(msg)) return;
   printBarcodeLabels(list);
 }
+/* ================= KONFIGURASI KERTAS LABEL =================
+   Semua ukuran dalam MILIMETER (mm).
+   px/py = jarak dari tepi kiri/atas label ke tepi kiri/atas label BERIKUTNYA
+   (pitch, bukan lebar celah). Ini yang bikin posisi tidak melenceng makin jauh
+   di kolom/baris terakhir.
+
+   Preset 'koala' diukur langsung dari hasil cetak kertas Koala milik user:
+   lembar 195 x 135 mm, 12 label (3 kolom x 4 baris), pitch 64,4 x 32,7 mm.
+   Dari cetakan uji juga ketahuan lembarnya masuk printer dalam posisi TENGAH,
+   bukan rapat kanan — makanya align default 'center'.
+*/
+var LABEL_PRESETS = {
+  'koala': { cols:3, rows:4, lw:62.5, lh:31, px:64.4, py:32.7, ml:2.5, mt:3, sw:195, sh:135 },
+  '103':   { cols:3, rows:4, lw:64,   lh:32, px:68,   py:38,   ml:2,   mt:9, sw:205, sh:160 },
+  '121':   { cols:3, rows:4, lw:70,   lh:33, px:70,   py:38,   ml:0,   mt:8, sw:210, sh:160 }
+};
+var LABEL_CFG_DEFAULT = {
+  preset:'koala', mode:'a4', align:'center', offX:-0.5, offY:0,
+  cols:3, rows:4, lw:62.5, lh:31, px:64.4, py:32.7, ml:2.5, mt:3, sw:195, sh:135
+};
+var labelCfg = null;
+
+function loadLabelCfg() {
+  if (labelCfg) return labelCfg;
+  var saved = null;
+  // kunci v3: setting lama (pitch & posisi lembar yg ternyata meleset) tidak dipakai lagi
+  try { saved = JSON.parse(localStorage.getItem('hesoyam_label_cfg_v3') || 'null'); } catch(e) {}
+  labelCfg = Object.assign({}, LABEL_CFG_DEFAULT, saved || {});
+  return labelCfg;
+}
+function persistLabelCfg(cfg) {
+  labelCfg = cfg;
+  try { localStorage.setItem('hesoyam_label_cfg_v3', JSON.stringify(cfg)); } catch(e) {}
+}
+
+// Posisi blok lembar label di atas halaman cetak (mm).
+function labelGeometry(cfg) {
+  var isA4 = (cfg.mode === 'a4');
+  var pageW = isA4 ? 210 : cfg.sw;
+  var pageH = isA4 ? 297 : cfg.sh;
+  var sheetX = 0;
+  if (isA4) {
+    if (cfg.align === 'right') sheetX = pageW - cfg.sw;
+    else if (cfg.align === 'center') sheetX = (pageW - cfg.sw) / 2;
+    else sheetX = 0;
+  }
+  var sheetY = 0;
+  sheetX += (parseFloat(cfg.offX) || 0);
+  sheetY += (parseFloat(cfg.offY) || 0);
+  return { pageW: pageW, pageH: pageH, sheetX: sheetX, sheetY: sheetY, perPage: cfg.cols * cfg.rows };
+}
+function labelSlotPos(cfg, geo, idx) {
+  var c = idx % cfg.cols;
+  var r = Math.floor(idx / cfg.cols);
+  return { x: geo.sheetX + cfg.ml + c * cfg.px, y: geo.sheetY + cfg.mt + r * cfg.py };
+}
+function labelPageSizeCss(cfg, geo) {
+  return (cfg.mode === 'a4') ? 'A4' : (geo.pageW + 'mm ' + geo.pageH + 'mm');
+}
+
+// Printer inkjet umumnya tidak bisa mencetak ~3mm dari tepi kertas.
+// Peringatkan kalau ada label yang jatuh di zona itu supaya tidak terpotong diam-diam.
+function labelBoundsWarning(cfg, geo) {
+  var M = 3;   // area tak tercetak printer inkjet
+  var T = 2;   // toleransi: tepi label yang cuma nyerempet tidak perlu diributkan
+  var minX = geo.sheetX + cfg.ml;
+  var maxX = minX + (cfg.cols - 1) * cfg.px + cfg.lw;
+  var minY = geo.sheetY + cfg.mt;
+  var maxY = minY + (cfg.rows - 1) * cfg.py + cfg.lh;
+  var sisi = [];
+  if (minX < M - T) sisi.push('kiri');
+  if (maxX > geo.pageW - M + T) sisi.push('kanan');
+  if (minY < M - T) sisi.push('atas');
+  if (maxY > geo.pageH - M + T) sisi.push('bawah');
+  if (!sisi.length) return '';
+  return '⚠ Label mepet tepi ' + sisi.join(' & ') + ' halaman — printer tidak bisa cetak ±3mm dari tepi. ' +
+         'Kalau ada yang terpotong, geser sedikit lewat Koreksi Posisi di Setting Label.';
+}
+
+// CSS dasar dipakai bareng oleh cetak QR dan cetak tes kalibrasi.
+function labelBaseCss(cfg, geo) {
+  return '*{box-sizing:border-box;margin:0;padding:0;}' +
+    'html,body{background:#e9e9ef;}' +
+    'body{font-family:Arial,Helvetica,sans-serif;}' +
+    '.page{position:relative;width:' + geo.pageW + 'mm;height:' + geo.pageH + 'mm;background:#fff;' +
+      'page-break-after:always;overflow:hidden;margin:14px auto;box-shadow:0 2px 14px rgba(0,0,0,.18);}' +
+    '.sheet-line{position:absolute;left:' + geo.sheetX + 'mm;top:' + geo.sheetY + 'mm;' +
+      'width:' + cfg.sw + 'mm;height:' + cfg.sh + 'mm;border:0.3mm dashed #b9b3d6;}' +
+    '.slot{position:absolute;width:' + cfg.lw + 'mm;height:' + cfg.lh + 'mm;overflow:hidden;}' +
+    '@page{size:' + labelPageSizeCss(cfg, geo) + ';margin:0;}' +
+    '@media print{' +
+      'html,body{background:#fff;}' +
+      '.page{margin:0;box-shadow:none;}' +
+      '.sheet-line{border:none;}' +
+      '.noprint{display:none !important;}' +
+    '}';
+}
+
 function printBarcodeLabels(list) {
-  if(!list || list.length===0){ alert('Tidak ada aset untuk dicetak.'); return; }
-  const w = window.open('','_blank');
-  if(!w){ alert('Popup diblokir. Izinkan popup untuk cetak.'); return; }
-  const codes = list.map(a=>({ arf:a.arf, nama:a.nama, lokasi:a.lokasi||'' }));
+  if (!list || list.length === 0) { alert('Tidak ada aset untuk dicetak.'); return; }
+  var cfg = loadLabelCfg();
+  var geo = labelGeometry(cfg);
+  var perPage = geo.perPage;
+  var warn = labelBoundsWarning(cfg, geo);
+  var w = window.open('', '_blank');
+  if (!w) { alert('Popup diblokir. Izinkan popup untuk cetak.'); return; }
+  var codes = list.map(function(a) { return { arf: a.arf, nama: a.nama, lokasi: a.lokasi || '' }; });
+
   w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>QR Code Aset</title>');
   w.document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>');
-  // Kertas label 19,5 x 13,5 cm (landscape), grid 3 kolom x 4 baris = 12 slot per halaman.
-  // Tiap slot 6,5 x 3 cm. QR + info di dalam slot.
-  w.document.write('<style>' +
-    '*{box-sizing:border-box;margin:0;padding:0;}' +
-    'html,body{background:#fff;}' +
-    'body{font-family:Arial,Helvetica,sans-serif;}' +
-    '#prog{position:fixed;top:0;left:0;right:0;background:#6c3fc5;color:#fff;padding:8px;text-align:center;font-size:13px;z-index:999;}' +
-    // satu halaman = grid 3x4, ukuran kertas pas
-    '.page{width:19.5cm;height:13.5cm;display:grid;grid-template-columns:repeat(3,6.5cm);grid-template-rows:repeat(4,3cm);page-break-after:always;margin:0 auto;}' +
-    '.slot{width:6.5cm;height:3cm;padding:1.5mm 2mm;display:flex;flex-direction:row;align-items:center;gap:2mm;overflow:hidden;}' +
-    // QR ~2cm (muat di tinggi slot 3cm)
+  w.document.write('<style>' + labelBaseCss(cfg, geo) +
+    '#prog{position:fixed;top:0;left:0;right:0;background:#6c3fc5;color:#fff;padding:10px 14px;font-size:13px;z-index:999;box-shadow:0 2px 10px rgba(0,0,0,.25);}' +
+    '.pbtn{padding:6px 14px;background:#fff;color:#6c3fc5;border:none;border-radius:5px;font-weight:bold;cursor:pointer;font-size:12.5px;}' +
+    '.pbtn2{padding:6px 14px;background:transparent;color:#fff;border:1px solid rgba(255,255,255,.55);border-radius:5px;font-weight:bold;cursor:pointer;font-size:12.5px;}' +
+    '.slot{padding:1.5mm 2mm;display:flex;flex-direction:row;align-items:center;gap:2mm;}' +
     '.slot .qr{width:20mm;height:20mm;flex-shrink:0;display:flex;align-items:center;justify-content:center;}' +
     '.slot .qr img,.slot .qr canvas{width:20mm !important;height:20mm !important;}' +
-    '.slot .info{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:0.5mm;text-align:left;}' +
+    '.slot .info{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:0.5mm;}' +
     '.slot .nm{font-size:7.5pt;font-weight:bold;line-height:1.1;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}' +
     '.slot .arf{font-size:6.5pt;font-weight:600;color:#111;word-break:break-all;line-height:1.05;}' +
     '.slot .lo{font-size:6.5pt;color:#444;line-height:1.05;}' +
-    '@media print{' +
-      '@page{size:19.5cm 13.5cm;margin:0;}' +  // ukuran kertas persis, tanpa margin
-      '#prog{display:none;}' +
-      '.page{margin:0;}' +
-    '}' +
-  '</style></head><body>');
-  w.document.write('<div id="prog">Menyiapkan QR code... 0/'+codes.length+'</div>');
-  // bagi jadi halaman-halaman berisi 12 slot
-  var pagesHtml = '';
-  for(var pg=0; pg<Math.ceil(codes.length/12); pg++){
-    pagesHtml += '<div class="page">';
-    for(var s=0; s<12; s++){
-      var idx = pg*12 + s;
-      if(idx < codes.length){
-        pagesHtml += '<div class="slot"><div class="qr" id="qr'+idx+'"></div><div class="info" id="info'+idx+'"></div></div>';
-      } else {
-        pagesHtml += '<div class="slot"></div>';  // slot kosong biar grid tetap rapi
-      }
+    '@media screen{.slot{outline:0.2mm dashed #d6d2e8;}}' +
+    '</style></head><body>');
+
+  w.document.write('<div id="prog" class="noprint">' +
+    '<div id="prog-text">Menyiapkan QR code... 0/' + codes.length + '</div>' +
+    '<div id="prog-help" style="display:none;margin-top:7px;">' +
+      '<span id="hint-a4" style="display:none;">Mode <b>A4</b>: di dialog print pilih kertas <b>A4</b>, <b>Margins: None</b>, <b>Scale: 100%</b>. Tidak perlu bikin ukuran kertas baru. </span>' +
+      '<span id="hint-exact" style="display:none;">Mode <b>ukuran persis</b>: pilih kertas <b>' + geo.pageW + '×' + geo.pageH + 'mm</b>, <b>Margins: None</b>, <b>Scale: 100%</b>. </span>' +
+      '<button class="pbtn" onclick="window.print()">🖨 Print Sekarang</button> ' +
+      '<button class="pbtn2" onclick="window.close()">Tutup</button>' +
+      (warn ? '<div style="margin-top:7px;font-size:12px;background:rgba(0,0,0,.22);padding:6px 9px;border-radius:6px;">' + warn + '</div>' : '') +
+    '</div>' +
+  '</div>');
+
+  var pages = Math.ceil(codes.length / perPage);
+  var html = '';
+  for (var pg = 0; pg < pages; pg++) {
+    html += '<div class="page"><div class="sheet-line"></div>';
+    for (var s = 0; s < perPage; s++) {
+      var idx = pg * perPage + s;
+      if (idx >= codes.length) break;
+      var p = labelSlotPos(cfg, geo, s);
+      html += '<div class="slot" style="left:' + p.x + 'mm;top:' + p.y + 'mm;">' +
+                '<div class="qr" id="qr' + idx + '"></div>' +
+                '<div class="info" id="info' + idx + '"></div>' +
+              '</div>';
     }
-    pagesHtml += '</div>';
+    html += '</div>';
   }
-  w.document.write(pagesHtml);
-  w.document.write('<scr'+'ipt>window.onload=function(){' +
-    'var CODES='+JSON.stringify(codes)+';' +
+  w.document.write(html);
+
+  w.document.write('<scr' + 'ipt>window.onload=function(){' +
+    'var CODES=' + JSON.stringify(codes) + ';' +
+    'var MODE=' + JSON.stringify(cfg.mode) + ';' +
     'function esc(s){return (s==null?"":String(s)).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}' +
     'var prog=document.getElementById("prog");' +
-    'if(typeof QRCode==="undefined"){prog.textContent="QR perlu internet. Buka via GitHub Pages.";prog.style.background="#dc2626";return;}' +
+    'var progText=document.getElementById("prog-text");' +
+    'if(typeof QRCode==="undefined"){progText.textContent="QR perlu internet. Buka lewat GitHub Pages / online dulu.";prog.style.background="#dc2626";return;}' +
     'var i=0;var BATCH=12;' +
     'function nextBatch(){' +
       'var end=Math.min(i+BATCH,CODES.length);' +
@@ -4913,14 +5144,201 @@ function printBarcodeLabels(list) {
         'var qd=document.getElementById("qr"+i);' +
         'if(qd){try{new QRCode(qd,{text:a.arf,width:120,height:120,correctLevel:QRCode.CorrectLevel.M});}catch(e){qd.innerHTML="<div style=\'font-size:6pt\'>"+esc(a.arf)+"</div>";}}' +
       '}' +
-      'prog.textContent="Menyiapkan QR code... "+i+"/"+CODES.length;' +
+      // update #prog-text saja, JANGAN parent #prog, supaya tombol Print tidak ikut terhapus
+      'progText.textContent="Menyiapkan QR code... "+i+"/"+CODES.length;' +
       'if(i<CODES.length){setTimeout(nextBatch,50);}' +
-      'else{prog.textContent="Selesai! Membuka dialog cetak...";setTimeout(function(){window.print();},600);}' +
+      'else{' +
+        'progText.textContent="✓ QR siap ("+CODES.length+" label).";' +
+        'document.getElementById("prog-help").style.display="block";' +
+        'document.getElementById(MODE==="a4"?"hint-a4":"hint-exact").style.display="inline";' +
+        'setTimeout(function(){window.print();},700);' +
+      '}' +
     '}' +
     'nextBatch();' +
-  '};<\/scr'+'ipt>');
+  '};<\/scr' + 'ipt>');
   w.document.write('</body></html>');
   w.document.close();
+}
+
+// Halaman tes: dicetak di kertas HVS biasa, lalu lembar label ditumpuk di atasnya
+// untuk mengukur berapa mm posisinya perlu digeser.
+function printLabelCalibration() {
+  var cfg = readLabelForm() || loadLabelCfg();
+  var geo = labelGeometry(cfg);
+  var w = window.open('', '_blank');
+  if (!w) { alert('Popup diblokir. Izinkan popup untuk cetak.'); return; }
+
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Tes Kalibrasi Label</title>');
+  w.document.write('<style>' + labelBaseCss(cfg, geo) +
+    '.slot{border:0.3mm solid #000;}' +
+    '.slot .no{position:absolute;left:1.5mm;top:1.2mm;font-size:8pt;font-weight:bold;}' +
+    '.slot .cross-h{position:absolute;left:0;top:0;width:8mm;height:0.3mm;background:#000;}' +
+    '.slot .cross-v{position:absolute;left:0;top:0;width:0.3mm;height:8mm;background:#000;}' +
+    '.frame{position:absolute;border:0.3mm solid #888;}' +
+    '.tick{position:absolute;background:#333;}' +
+    '.tnum{position:absolute;font-size:5pt;color:#333;}' +
+    '.note{position:absolute;font-size:9pt;line-height:1.6;color:#111;}' +
+    '.note b{font-size:10pt;}' +
+    '@media print{.frame{border-color:#888;}}' +
+    '</style></head><body>');
+
+  var warn = labelBoundsWarning(cfg, geo);
+  w.document.write('<div id="bar" class="noprint" style="position:fixed;top:0;left:0;right:0;background:#6c3fc5;color:#fff;padding:10px 14px;font-size:13px;z-index:999;">' +
+    'Halaman tes kalibrasi — cetak di <b>kertas HVS biasa</b> dulu, jangan pakai lembar label. ' +
+    '<button style="padding:6px 14px;background:#fff;color:#6c3fc5;border:none;border-radius:5px;font-weight:bold;cursor:pointer;" onclick="window.print()">🖨 Print</button>' +
+    (warn ? '<div style="margin-top:7px;font-size:12px;background:rgba(0,0,0,.22);padding:6px 9px;border-radius:6px;">' + warn + '</div>' : '') +
+  '</div>');
+
+  var html = '<div class="page">';
+  // garis tepi lembar label
+  html += '<div class="frame" style="left:' + geo.sheetX + 'mm;top:' + geo.sheetY + 'mm;width:' + cfg.sw + 'mm;height:' + cfg.sh + 'mm;"></div>';
+  // penggaris mendatar di pita margin atas lembar
+  var t;
+  for (t = 0; t <= cfg.sw; t += 5) {
+    var big = (t % 10 === 0);
+    html += '<div class="tick" style="left:' + (geo.sheetX + t) + 'mm;top:' + geo.sheetY + 'mm;width:0.25mm;height:' + (big ? 3 : 1.8) + 'mm;"></div>';
+    if (big && t % 20 === 0 && t <= cfg.sw - 6) {
+      html += '<div class="tnum" style="left:' + (geo.sheetX + t + 0.6) + 'mm;top:' + (geo.sheetY + 3.2) + 'mm;">' + t + '</div>';
+    }
+  }
+  // penggaris tegak di pita margin kiri lembar
+  for (t = 0; t <= cfg.sh; t += 5) {
+    var bigv = (t % 10 === 0);
+    html += '<div class="tick" style="left:' + geo.sheetX + 'mm;top:' + (geo.sheetY + t) + 'mm;height:0.25mm;width:' + (bigv ? 3 : 1.8) + 'mm;"></div>';
+    if (bigv && t % 20 === 0 && t <= cfg.sh - 6) {
+      html += '<div class="tnum" style="left:' + (geo.sheetX + 3.4) + 'mm;top:' + (geo.sheetY + t + 0.4) + 'mm;">' + t + '</div>';
+    }
+  }
+  // kotak tiap label + tanda silang di pojok kiri-atas
+  for (var s = 0; s < geo.perPage; s++) {
+    var p = labelSlotPos(cfg, geo, s);
+    html += '<div class="slot" style="left:' + p.x + 'mm;top:' + p.y + 'mm;">' +
+              '<div class="cross-h"></div><div class="cross-v"></div>' +
+              '<div class="no">' + (s + 1) + '</div>' +
+            '</div>';
+  }
+  // catatan hanya kalau masih ada ruang kosong di bawah (mode A4)
+  var noteTop = geo.sheetY + cfg.sh + 12;
+  if (noteTop + 45 < geo.pageH) {
+    html += '<div class="note" style="left:14mm;top:' + noteTop + 'mm;width:' + (geo.pageW - 28) + 'mm;">' +
+      '<b>Cara pakai halaman tes ini</b><br/>' +
+      '1. Tumpuk lembar label di atas kertas ini, ratakan sisi kertas persis seperti waktu masuk printer.<br/>' +
+      '2. Lihat kotak bernomor di atas — harusnya pas menutupi stiker labelnya.<br/>' +
+      '3. Kalau meleset, ukur selisihnya pakai penggaris di tepi kotak besar (garis kecil = 5 mm).<br/>' +
+      '4. Buka Setting Label, isi <b>Koreksi Posisi</b>: ke kanan/bawah pakai angka positif, ke kiri/atas pakai minus.<br/>' +
+      '5. Simpan, lalu cetak tes lagi sampai pas. Setelah itu Cetak QR langsung jadi.<br/><br/>' +
+      'Mode: ' + (cfg.mode === 'a4' ? 'A4 (tanpa setting printer)' : 'Ukuran persis ' + cfg.sw + '×' + cfg.sh + 'mm') +
+      ' &nbsp;|&nbsp; Posisi lembar: ' + ({ right:'rapat kanan', center:'tengah', left:'rapat kiri' }[cfg.align] || cfg.align) +
+      ' &nbsp;|&nbsp; Koreksi: X ' + (cfg.offX || 0) + 'mm, Y ' + (cfg.offY || 0) + 'mm' +
+      ' &nbsp;|&nbsp; Label ' + cfg.lw + '×' + cfg.lh + 'mm, jarak ' + cfg.px + '/' + cfg.py + 'mm' +
+    '</div>';
+  }
+  html += '</div>';
+  w.document.write(html);
+  w.document.write('<scr' + 'ipt>window.onload=function(){setTimeout(function(){window.print();},500);};<\/scr' + 'ipt>');
+  w.document.write('</body></html>');
+  w.document.close();
+}
+
+/* ---------- UI Setting Label ---------- */
+function openLabelSettings() {
+  var cfg = loadLabelCfg();
+  fillLabelForm(cfg);
+  document.getElementById('label-modal').classList.add('show');
+}
+function closeLabelSettings() {
+  document.getElementById('label-modal').classList.remove('show');
+}
+function fillLabelForm(cfg) {
+  var v = function(id, val) { var el = document.getElementById(id); if (el) el.value = val; };
+  v('lbl-preset', cfg.preset || 'custom');
+  v('lbl-mode', cfg.mode);
+  v('lbl-align', cfg.align);
+  v('lbl-offx', cfg.offX);
+  v('lbl-offy', cfg.offY);
+  v('lbl-cols', cfg.cols); v('lbl-rows', cfg.rows);
+  v('lbl-lw', cfg.lw); v('lbl-lh', cfg.lh);
+  v('lbl-px', cfg.px); v('lbl-py', cfg.py);
+  v('lbl-ml', cfg.ml); v('lbl-mt', cfg.mt);
+  v('lbl-sw', cfg.sw); v('lbl-sh', cfg.sh);
+  onLabelModeChange();
+}
+function readLabelForm() {
+  if (!document.getElementById('lbl-mode')) return null;
+  var n = function(id, dflt) {
+    var el = document.getElementById(id);
+    var x = el ? parseFloat(el.value) : NaN;
+    return isNaN(x) ? dflt : x;
+  };
+  var d = LABEL_CFG_DEFAULT;
+  return {
+    preset: document.getElementById('lbl-preset').value,
+    mode: document.getElementById('lbl-mode').value,
+    align: document.getElementById('lbl-align').value,
+    offX: n('lbl-offx', 0), offY: n('lbl-offy', 0),
+    cols: Math.max(1, Math.round(n('lbl-cols', d.cols))),
+    rows: Math.max(1, Math.round(n('lbl-rows', d.rows))),
+    lw: n('lbl-lw', d.lw), lh: n('lbl-lh', d.lh),
+    px: n('lbl-px', d.px), py: n('lbl-py', d.py),
+    ml: n('lbl-ml', d.ml), mt: n('lbl-mt', d.mt),
+    sw: n('lbl-sw', d.sw), sh: n('lbl-sh', d.sh)
+  };
+}
+function saveLabelSettings() {
+  var cfg = readLabelForm();
+  if (!cfg) return;
+  persistLabelCfg(cfg);
+  closeLabelSettings();
+  if (typeof showNotif === 'function') showNotif('Setting label tersimpan', 'success');
+  else alert('Setting label tersimpan.');
+}
+function resetLabelSettings() {
+  if (!confirm('Kembalikan setting label ke bawaan (Label 103, mode A4)?')) return;
+  fillLabelForm(Object.assign({}, LABEL_CFG_DEFAULT));
+}
+function applyLabelPreset(name) {
+  var p = LABEL_PRESETS[name];
+  if (!p) return;
+  var cur = readLabelForm() || loadLabelCfg();
+  fillLabelForm(Object.assign({}, cur, p, { preset: name }));
+}
+function onLabelModeChange() {
+  var mode = document.getElementById('lbl-mode').value;
+  var box = document.getElementById('lbl-a4-opts');
+  var hint = document.getElementById('lbl-mode-hint');
+  if (box) box.style.display = (mode === 'a4') ? '' : 'none';
+  if (hint) {
+    hint.innerHTML = (mode === 'a4')
+      ? 'Halaman dibuat seukuran A4 (ukuran yang sudah ada di printer), label ditaruh persis di posisi lembar labelnya. Printer mungkin bunyi "paper out" setelah selesai karena kertasnya lebih pendek — tekan tombol resume, hasil cetak tetap benar.'
+      : 'Halaman dibuat persis seukuran lembar label. Paling rapi, tapi ukuran ini harus dibuat sekali di dialog print (Paper size → Manage Custom Sizes).';
+  }
+}
+// Meleset yang makin membesar tiap kolom/baris = pitch (jarak antar label) salah.
+// Melesetnya dibagi rata ke jumlah langkah, lalu dikurangkan dari pitch.
+function applyDriftFix() {
+  var cfg = readLabelForm();
+  if (!cfg) return;
+  var dx = parseFloat(document.getElementById('lbl-drift-x').value) || 0;
+  var dy = parseFloat(document.getElementById('lbl-drift-y').value) || 0;
+  if (!dx && !dy) { alert('Isi dulu berapa mm melesetnya di label pojok.'); return; }
+  var r2 = function(n) { return Math.round(n * 100) / 100; };
+  if (dx && cfg.cols > 1) cfg.px = r2(cfg.px - dx / (cfg.cols - 1));
+  if (dy && cfg.rows > 1) cfg.py = r2(cfg.py - dy / (cfg.rows - 1));
+  cfg.preset = 'custom';
+  fillLabelForm(cfg);
+  document.getElementById('lbl-drift-x').value = '';
+  document.getElementById('lbl-drift-y').value = '';
+  var box = document.getElementById('lbl-advanced');
+  if (box && box.style.display === 'none') toggleLabelAdvanced();
+  alert('Jarak antar label diperbarui:\n\nAntar kolom: ' + cfg.px + ' mm\nAntar baris: ' + cfg.py + ' mm\n\nKlik Simpan, lalu Cetak Tes lagi.');
+}
+function toggleLabelAdvanced() {
+  var box = document.getElementById('lbl-advanced');
+  var ar = document.getElementById('lbl-adv-arrow');
+  if (!box) return;
+  var show = (box.style.display === 'none');
+  box.style.display = show ? '' : 'none';
+  if (ar) ar.style.transform = show ? 'rotate(180deg)' : '';
 }
 function escHtml(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
