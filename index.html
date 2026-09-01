@@ -1884,6 +1884,21 @@ input[type=file]{display:none;}
           <button class="btn btn-primary" onclick="submitLockPass()"><i class="ti ti-lock-open"></i> Buka</button>
         </div>
         <div class="lock-hint" id="lock-hint"></div>
+        <div id="lock-forgot" style="margin-top:10px;display:none;">
+          <button onclick="mintaResetLock()" style="background:none;border:none;color:var(--purple);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:underline;">Lupa password?</button>
+        </div>
+        <div id="lock-reset" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:9px;">
+            Masukkan <b>password akun login</b> milikmu untuk menghapus password fitur ini,
+            lalu kamu bisa membuat yang baru.
+          </div>
+          <input type="password" id="lock-reset-pass" class="lock-input" placeholder="Password login kamu..." onkeydown="if(event.key==='Enter')submitResetLock()"/>
+          <div class="lock-err" id="lock-reset-err"></div>
+          <div class="lock-actions" style="margin-top:8px;">
+            <button class="btn" onclick="batalResetLock()">Batal</button>
+            <button class="btn btn-danger" onclick="submitResetLock()"><i class="ti ti-key"></i> Hapus &amp; Buat Ulang</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -7300,6 +7315,11 @@ function openLocked(target) {
     : '<i class="ti ti-info-circle" style="font-size:11px;vertical-align:-1px"></i> Ini pertama kali — password yang kamu masukkan akan disimpan.';
   document.getElementById('lock-pass').value = '';
   document.getElementById('lock-err').textContent = '';
+  // tautan reset hanya berguna kalau passwordnya memang sudah pernah dibuat
+  document.getElementById('lock-forgot').style.display = hasPass ? 'block' : 'none';
+  document.getElementById('lock-reset').style.display = 'none';
+  document.getElementById('lock-reset-err').textContent = '';
+  document.getElementById('lock-reset-pass').value = '';
   document.getElementById('keuangan-lock').classList.add('show');
   setTimeout(function () { try { document.getElementById('lock-pass').focus(); } catch (e) {} }, 100);
 }
@@ -7311,6 +7331,7 @@ function openKeuangan() {
 function closeKeuanganLock() { document.getElementById('keuangan-lock').classList.remove('show'); }
 
 function afterUnlock(target) {
+  document.getElementById('lock-err').textContent = '';
   if (target === 'kontrak') {
     kontrakUnlocked = true;
     closeKeuanganLock();
@@ -7340,6 +7361,41 @@ function submitLockPass() {
   }
 }
 function submitKeuanganPass() { submitLockPass(); }   // nama lama, jaga-jaga masih dipanggil
+
+/* ── Lupa password fitur ──
+   Password fitur disimpan per-perangkat dan hanya berupa hash, jadi tidak bisa
+   dibaca balik. Yang bisa dilakukan: hapus, lalu buat baru. Supaya tidak bisa
+   dilakukan sembarang orang, harus dibuktikan dulu dengan password akun login. */
+function mintaResetLock() {
+  document.getElementById('lock-forgot').style.display = 'none';
+  document.getElementById('lock-reset').style.display = 'block';
+  setTimeout(function () { try { document.getElementById('lock-reset-pass').focus(); } catch (e) {} }, 80);
+}
+function batalResetLock() {
+  document.getElementById('lock-reset').style.display = 'none';
+  document.getElementById('lock-forgot').style.display = 'block';
+  document.getElementById('lock-reset-err').textContent = '';
+  document.getElementById('lock-reset-pass').value = '';
+}
+function submitResetLock() {
+  var val = document.getElementById('lock-reset-pass').value;
+  var err = document.getElementById('lock-reset-err');
+  err.textContent = '';
+  if (!val) { err.textContent = 'Isi dulu password login kamu.'; return; }
+  if (!currentUser || !currentUser.username) { err.textContent = 'Kamu belum login.'; return; }
+  if (!FB_OK) { err.textContent = 'Tidak terhubung ke server. Cek koneksi internet.'; return; }
+
+  fbDB.ref('users/' + currentUser.username).get().then(function (snap) {
+    var u = snap.val();
+    if (!u || u.pass !== simpleHash(val)) { err.textContent = 'Password login salah.'; return; }
+    var cfg = LOCK_CFG[lockTarget];
+    try { localStorage.removeItem(cfg.key); } catch (e) {}
+    batalResetLock();
+    openLocked(lockTarget);          // buka ulang: sekarang mode "buat password baru"
+    document.getElementById('lock-hint').innerHTML =
+      '<i class="ti ti-check" style="font-size:11px;vertical-align:-1px;color:#16a34a"></i> Password lama dihapus. Silakan buat yang baru.';
+  }).catch(function (e) { err.textContent = 'Gagal memeriksa: ' + e.message; });
+}
 
 function lockKeuangan() { keuUnlocked = false; showPage('list'); setActiveNav('nav-bap-list'); }
 function lockKontrak() { kontrakUnlocked = false; showPage('home'); setActiveNav('nav-home'); }
