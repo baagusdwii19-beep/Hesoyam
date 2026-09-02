@@ -2981,7 +2981,10 @@ input[type=file]{display:none;}
         <div class="stat-card"><div class="stat-val" id="aset-st-rusak">0</div><div class="stat-lbl"><i class="ti ti-alert-triangle" style="font-size:11px;vertical-align:-1px"></i> Perlu Perhatian</div></div>
       </div>
       <div style="padding:0 16px 12px;display:flex;gap:8px;flex-wrap:wrap;">
-        <input type="text" id="aset-search" class="search-input" style="flex:1;min-width:180px;" placeholder="Cari nama / No ARF..." oninput="renderAsetList()"/>
+        <div style="display:flex;gap:6px;flex:1;min-width:200px;">
+          <input type="text" id="aset-search" class="search-input" style="flex:1;min-width:0;" placeholder="Cari / scan No ARF..." autocomplete="off" oninput="onCariAsetInput(event)" onkeydown="onCariAsetKey(event)"/>
+          <button class="btn" onclick="openScanner('cari')" title="Scan pakai kamera HP"><i class="ti ti-scan"></i></button>
+        </div>
         <select id="aset-filter-status" class="filter-select" onchange="renderAsetList()"><option value="">Semua Status</option></select>
         <select id="aset-filter-kode" class="filter-select" onchange="renderAsetList()"><option value="">Semua Kode</option></select>
         <select id="aset-filter-tahun" class="filter-select" onchange="renderAsetList()"><option value="">Semua Tahun</option></select>
@@ -6180,7 +6183,18 @@ function updateScanCounter() {
   if(el && activeOpname) el.textContent = Object.keys(activeOpname.hasil).length + ' aset tercatat';
 }
 
-function openScanner() {
+var _scanMode = 'opname';   // 'opname' = tandai stock opname, 'cari' = cari aset
+
+function openScanner(mode) {
+  _scanMode = mode || 'opname';
+  var judulEl = document.querySelector('#scanner-modal .sop-modal-title');
+  if (judulEl) {
+    judulEl.innerHTML = (_scanMode === 'cari')
+      ? '<i class="ti ti-scan" style="color:var(--purple)"></i> Scan untuk Cari Aset'
+      : '<i class="ti ti-scan" style="color:var(--purple)"></i> Scan QR / Barcode Aset';
+  }
+  var ctr = document.getElementById('scan-counter');
+  if (ctr) ctr.style.display = (_scanMode === 'cari') ? 'none' : '';
   document.getElementById('scanner-modal').classList.add('show');
   _lastScan = { code:'', time:0 };
   // unlock audio (kebijakan browser HP: audio perlu gesture user)
@@ -6197,6 +6211,7 @@ function openScanner() {
       const now = Date.now();
       if(_lastScan.code === decodedText && (now - _lastScan.time) < 1500) return;
       _lastScan = { code: decodedText, time: now };
+      if (_scanMode === 'cari') { hasilScanCari(decodedText); return; }
       const r = markAsetScanned(decodedText, false);
       const st = document.getElementById('scanner-status');
       if(r.ok && !r.dup){ st.textContent = '✓ '+r.msg; st.style.color='#16a34a'; showScanFlash('ok', r.nama); }
@@ -6209,6 +6224,92 @@ function openScanner() {
     document.getElementById('scanner-status').textContent = 'Gagal buka kamera: '+err+'. Pastikan izin kamera & pakai HTTPS.';
   });
 }
+/* Cari aset dari hasil scan (kamera) — kalau ketemu, langsung buka detailnya. */
+function hasilScanCari(kode) {
+  var st = document.getElementById('scanner-status');
+  var a = cariAsetByKode(kode);
+  var inp = document.getElementById('aset-search');
+  if (inp) { inp.value = kode; }
+  resetAsetFilterUntukCari();
+  renderAsetList();
+  if (a) {
+    st.textContent = '✓ ' + a.nama; st.style.color = '#16a34a';
+    showScanFlash('ok', a.nama);
+    setTimeout(function () { stopScanner(); openAsetDetail(a.id); }, 550);
+  } else {
+    st.textContent = '✗ "' + kode + '" tidak ada di data aset'; st.style.color = '#dc2626';
+    showScanFlash('err', 'Tidak ditemukan');
+  }
+}
+
+function cariAsetByKode(kode) {
+  var k = String(kode || '').trim().toLowerCase();
+  if (!k) return null;
+  for (var i = 0; i < asetData.length; i++) {
+    if (String(asetData[i].arf || '').trim().toLowerCase() === k) return asetData[i];
+  }
+  return null;
+}
+
+/* Filter yang masih aktif bisa menyembunyikan aset yang barusan discan,
+   jadi dikosongkan dulu supaya hasilnya pasti kelihatan. */
+function resetAsetFilterUntukCari() {
+  ['aset-filter-status', 'aset-filter-kode', 'aset-filter-tahun'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el && el.value) { el.value = ''; if (typeof sddRefresh === 'function') sddRefresh(id); }
+  });
+}
+
+/* Alat scanner barcode mengetik sangat cepat lalu menekan Enter.
+   Ketikan tangan yang pelan tidak ikut terpicu. */
+var _cariBuf = { last: 0, gaps: [], timer: null };
+
+function onCariAsetInput(e) {
+  renderAsetList();
+  var now = Date.now();
+  if (_cariBuf.last) _cariBuf.gaps.push(now - _cariBuf.last);
+  if (_cariBuf.gaps.length > 12) _cariBuf.gaps.shift();
+  _cariBuf.last = now;
+  clearTimeout(_cariBuf.timer);
+  var val = (e.target.value || '').trim();
+  if (val.length < 6 || _cariBuf.gaps.length < 3) return;
+  var sum = 0;
+  for (var i = 0; i < _cariBuf.gaps.length; i++) sum += _cariBuf.gaps[i];
+  if (sum / _cariBuf.gaps.length <= 45) _cariBuf.timer = setTimeout(bukaAsetHasilCari, 170);
+}
+function onCariAsetKey(e) {
+  if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); bukaAsetHasilCari(); }
+}
+
+/* Buka detail kalau hasilnya sudah pasti satu — cocok persis dengan No ARF,
+   atau tersisa satu aset saja setelah difilter. */
+function bukaAsetHasilCari() {
+  clearTimeout(_cariBuf.timer);
+  _cariBuf.last = 0; _cariBuf.gaps = [];
+  var inp = document.getElementById('aset-search');
+  if (!inp) return;
+  var q = (inp.value || '').trim();
+  if (!q) return;
+  var a = cariAsetByKode(q);
+  if (!a) {
+    var cocok = asetData.filter(function (x) {
+      var s = q.toLowerCase();
+      return (x.nama || '').toLowerCase().indexOf(s) >= 0 || (x.arf || '').toLowerCase().indexOf(s) >= 0;
+    });
+    if (cocok.length === 1) a = cocok[0];
+  }
+  if (a) {
+    resetAsetFilterUntukCari();
+    renderAsetList();
+    playBeep('ok');
+    openAsetDetail(a.id);
+    inp.select();
+  } else {
+    playBeep('err');
+    showNotif('Aset "' + q + '" tidak ditemukan', 'error');
+  }
+}
+
 function stopScanner() {
   if(_scanner){ _scanner.stop().then(()=>{ _scanner.clear(); _scanner=null; }).catch(()=>{ _scanner=null; }); }
   document.getElementById('scanner-modal').classList.remove('show');
