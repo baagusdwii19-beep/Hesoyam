@@ -428,6 +428,48 @@ textarea{resize:vertical;min-height:60px;}
       yang telat diurus dampaknya fatal dan tidak boleh terlewat ── */
 
 
+
+/* ── Keranjang label: susun beberapa nama aset lalu cetak sekaligus ── */
+.lc-slot{display:flex;align-items:center;gap:9px;background:var(--bg2);border-radius:10px;padding:10px 13px;margin-bottom:12px;}
+.lc-slot-bar{flex:1;height:9px;border-radius:99px;background:var(--border);overflow:hidden;}
+.lc-slot-fill{height:100%;background:linear-gradient(90deg,#6c3fc5,#a855f7);transition:width .25s;}
+.lc-slot-txt{font-size:12.5px;font-weight:700;color:var(--purple);white-space:nowrap;}
+.lc-list{max-height:290px;overflow:auto;border:1px solid var(--border);border-radius:11px;}
+.lc-row{display:flex;align-items:center;gap:10px;padding:8px 11px;border-bottom:1px solid var(--bg2);}
+.lc-row:last-child{border-bottom:none;}
+.lc-row:nth-child(12n){border-bottom:2px dashed var(--purple);}
+.lc-no{width:24px;font-size:11px;color:var(--text3);text-align:right;flex-shrink:0;}
+.lc-nm{flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--text);}
+.lc-arf{font-size:11px;color:var(--text3);font-weight:400;}
+.lc-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:2px 5px;flex-shrink:0;}
+.lc-del:hover{color:#dc2626;}
+#lc-tanda i{font-size:16px;flex-shrink:0;}
+#lc-tanda span{flex:1;min-width:0;}
+#lc-tanda button{background:#92400e;border:none;color:#fff;font-size:11px;font-weight:700;padding:5px 11px;border-radius:99px;cursor:pointer;font-family:inherit;flex-shrink:0;}
+.lc-empty{padding:26px 16px;text-align:center;color:var(--text3);font-size:12.5px;}
+.lc-sug{border:1px solid var(--border);border-radius:10px;margin-top:5px;max-height:190px;overflow:auto;background:var(--bg);}
+.lc-sug-row{padding:8px 11px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--bg2);display:flex;justify-content:space-between;gap:10px;align-items:center;}
+.lc-sug-row:last-child{border-bottom:none;}
+.lc-sug-row:hover,.lc-sug-row.on{background:#f5f3ff;}
+
+.lc-sug-nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lc-sug-kanan{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.lc-plus{background:#f3e8ff;border:none;color:#7c3aed;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;cursor:pointer;font-family:inherit;}
+.lc-plus:hover{background:#e9d5ff;}
+.lc-sug-head{display:flex;align-items:center;gap:9px;padding:9px 11px;background:#f5f3ff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2;}
+.lc-back{background:none;border:none;color:var(--purple);font-size:17px;cursor:pointer;padding:2px 4px;flex-shrink:0;}
+.lc-head-nm{flex:1;min-width:0;font-size:13px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lc-head-jml{font-size:11px;color:var(--text3);font-weight:600;flex-shrink:0;}
+.lc-all{background:var(--purple);border:none;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;cursor:pointer;font-family:inherit;flex-shrink:0;}
+.lc-unit{display:flex;align-items:center;gap:9px;padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--bg2);font-size:12.5px;}
+.lc-unit:last-child{border-bottom:none;}
+.lc-unit:hover{background:var(--bg2);}
+.lc-unit.on{background:#f0fdf4;}
+.lc-unit i{font-size:17px;color:var(--text3);flex-shrink:0;}
+.lc-unit.on i{color:#16a34a;}
+.lc-unit-tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);}
+.lc-unit-lok{color:var(--text3);font-weight:400;}
+.lc-sug-jml{font-size:11px;color:var(--purple);font-weight:700;white-space:nowrap;}
 /* ── Tempel banyak barang (surat jalan) ── */
 #sjbulk-input,#keub-input{width:100%;min-height:170px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.65;padding:11px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);resize:vertical;}
 .sjb-hint{font-size:11.5px;color:var(--text3);line-height:1.65;background:var(--bg2);border-radius:9px;padding:9px 11px;margin-top:8px;}
@@ -2709,6 +2751,42 @@ input[type=file]{display:none;}
 
 
 
+
+    <!-- ══════════════ KERANJANG LABEL ══════════════ -->
+    <div class="sop-modal" id="labelcart-modal">
+      <div class="sop-modal-box" style="max-width:660px;">
+        <div class="sop-modal-head">
+          <div class="sop-modal-title"><i class="ti ti-list-check" style="color:var(--purple)"></i> Susun Label untuk Dicetak</div>
+          <button class="sop-modal-close" onclick="closeLabelCart()"><i class="ti ti-x"></i></button>
+        </div>
+        <div class="sop-modal-body">
+          <div class="field-label">Ketik nama barang atau No ARF, lalu tambahkan</div>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="lc-cari" class="search-input" style="flex:1;" autocomplete="off"
+                   placeholder="Contoh: Mouse Logitech" oninput="lcTutupNama()" onkeydown="lcKey(event)"/>
+            <button class="btn btn-primary" onclick="lcTambahDariInput()"><i class="ti ti-plus"></i> Tambah</button>
+          </div>
+          <div id="lc-sug"></div>
+
+          <div class="lc-slot" style="margin-top:14px;">
+            <div class="lc-slot-txt" id="lc-hitung">0 label</div>
+            <div class="lc-slot-bar"><div class="lc-slot-fill" id="lc-bar" style="width:0%"></div></div>
+            <div class="lc-slot-txt" id="lc-sisa" style="color:var(--text3);font-weight:600;"></div>
+          </div>
+
+          <div id="lc-tanda" style="display:none;align-items:center;gap:9px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:12px;line-height:1.5;">
+          </div>
+          <div class="lc-list" id="lc-list"></div>
+        </div>
+        <div class="sop-modal-foot">
+          <button class="btn" onclick="lcKosongkan()"><i class="ti ti-trash"></i> Kosongkan</button>
+          <div style="flex:1;"></div>
+          <button class="btn" onclick="closeLabelCart()">Tutup</button>
+          <button class="btn btn-success" id="lc-cetak" onclick="lcCetak()" disabled><i class="ti ti-printer"></i> Cetak Label</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ══════════════ TEMPEL BANYAK BARIS KEUANGAN ══════════════ -->
     <div class="sop-modal" id="keubulk-modal">
       <div class="sop-modal-box" style="max-width:760px;">
@@ -2988,10 +3066,13 @@ input[type=file]{display:none;}
         <select id="aset-filter-status" class="filter-select" onchange="renderAsetList()"><option value="">Semua Status</option></select>
         <select id="aset-filter-kode" class="filter-select" onchange="renderAsetList()"><option value="">Semua Kode</option></select>
         <select id="aset-filter-tahun" class="filter-select" onchange="renderAsetList()"><option value="">Semua Tahun</option></select>
+        <select id="aset-filter-nama" class="filter-select" onchange="renderAsetList()"><option value="">Semua Nama Barang</option></select>
+        <select id="aset-filter-lokasi" class="filter-select" onchange="renderAsetList()"><option value="">Semua Lokasi</option></select>
         <button class="btn btn-success" onclick="exportAsetExcel()"><i class="ti ti-file-spreadsheet"></i><span> Excel</span></button>
         <button class="btn" onclick="downloadAsetTemplate()"><i class="ti ti-download"></i><span> Template</span></button>
         <label class="btn" style="cursor:pointer;"><i class="ti ti-upload"></i><span> Import</span><input type="file" accept=".xlsx,.xls" onchange="importAsetExcel(this)" style="display:none;"/></label>
         <button class="btn" onclick="printAllBarcodes()"><i class="ti ti-qrcode"></i><span> Cetak QR</span></button>
+        <button class="btn btn-primary" onclick="openLabelCart()"><i class="ti ti-list-check"></i><span> Susun Label</span><span id="lc-badge" style="display:none;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;margin-left:6px;border-radius:99px;background:#fff;color:var(--purple);font-size:11px;font-weight:800;"></span></button>
         <button class="btn" onclick="openLabelSettings()" title="Atur ukuran & posisi kertas label"><i class="ti ti-ruler-measure"></i><span> Setting Label</span></button>
       </div>
       <div id="aset-hapus-bar" style="display:none;padding:10px 16px;background:#fef2f2;border-top:1px solid #fecaca;border-bottom:1px solid #fecaca;align-items:center;gap:10px;">
@@ -5062,6 +5143,59 @@ function getArfTahun(arf) {
   const m = String(arf).match(/(20\d{2})/);
   return m ? m[1] : '';
 }
+/* Logika filter dulu disalin di tiga tempat (daftar, centang semua, cetak QR),
+   jadi rawan salah satunya ketinggalan waktu filter baru ditambah.
+   Sekarang satu pintu: semua memanggil fungsi ini. */
+function filterAsetAktif() {
+  var v = function (id) { var el = document.getElementById(id); return el ? el.value : ''; };
+  var q = (v('aset-search') || '').toLowerCase();
+  var fs = v('aset-filter-status'), fk = v('aset-filter-kode'), ft = v('aset-filter-tahun');
+  var fn = v('aset-filter-nama'), fl = v('aset-filter-lokasi');
+  var hasil = asetData.filter(function (a) {
+    return (!q || (a.nama || '').toLowerCase().indexOf(q) >= 0 || (a.arf || '').toLowerCase().indexOf(q) >= 0) &&
+           (!fs || a.status === fs) &&
+           (!fk || getArfKode(a.arf) === fk) &&
+           (!ft || getArfTahun(a.arf) === ft) &&
+           (!fn || (a.nama || '').trim() === fn) &&
+           (!fl || ((a.lokasi || '').trim() || '(tanpa lokasi)') === fl);
+  });
+  hasil.adaFilter = !!(q || fs || fk || ft || fn || fl);
+  return hasil;
+}
+
+function populateAsetFilterNama() {
+  var sel = document.getElementById('aset-filter-nama'); if (!sel) return;
+  var cur = sel.value;
+  var nama = [];
+  var seen = {};
+  asetData.forEach(function (a) {
+    var n = (a.nama || '').trim();
+    if (n && !seen[n]) { seen[n] = 1; nama.push(n); }
+  });
+  nama.sort(function (x, y) { return x.localeCompare(y, 'id'); });
+  // tampilkan jumlahnya biar ketahuan berapa label yang akan tercetak
+  var jml = {};
+  asetData.forEach(function (a) { var n = (a.nama || '').trim(); if (n) jml[n] = (jml[n] || 0) + 1; });
+  sel.innerHTML = '<option value="">Semua Nama Barang</option>' +
+    nama.map(function (n) { return '<option value="' + escHtml(n) + '">' + escHtml(n) + ' (' + jml[n] + ')</option>'; }).join('');
+  if (cur && nama.indexOf(cur) >= 0) sel.value = cur;
+}
+
+function populateAsetFilterLokasi() {
+  var sel = document.getElementById('aset-filter-lokasi'); if (!sel) return;
+  var cur = sel.value;
+  var lok = [], seen = {}, jml = {};
+  asetData.forEach(function (a) {
+    var l = (a.lokasi || '').trim() || '(tanpa lokasi)';
+    if (!seen[l]) { seen[l] = 1; lok.push(l); }
+    jml[l] = (jml[l] || 0) + 1;
+  });
+  lok.sort(function (x, y) { return x.localeCompare(y, 'id', { numeric: true }); });
+  sel.innerHTML = '<option value="">Semua Lokasi</option>' +
+    lok.map(function (l) { return '<option value="' + escHtml(l) + '">' + escHtml(l) + ' (' + jml[l] + ')</option>'; }).join('');
+  if (cur && lok.indexOf(cur) >= 0) sel.value = cur;
+}
+
 function populateAsetFilterKode() {
   const sel = document.getElementById('aset-filter-kode'); if(!sel) return;
   const cur = sel.value;
@@ -5081,19 +5215,12 @@ function renderAsetList() {
   populateAsetFilterStatus();
   populateAsetFilterKode();
   populateAsetFilterTahun();
+  populateAsetFilterNama();
+  populateAsetFilterLokasi();
   document.getElementById('aset-st-total').textContent = asetData.length;
   document.getElementById('aset-st-baik').textContent = asetData.filter(a=>(a.status||'').toLowerCase()==='baik').length;
   document.getElementById('aset-st-rusak').textContent = asetData.filter(a=>{const s=(a.status||'').toLowerCase();return s!=='baik';}).length;
-  const q = (document.getElementById('aset-search').value||'').toLowerCase();
-  const fs = document.getElementById('aset-filter-status').value;
-  const fk = document.getElementById('aset-filter-kode').value;
-  const ft = document.getElementById('aset-filter-tahun').value;
-  let filtered = asetData.filter(a =>
-    (!q || (a.nama||'').toLowerCase().includes(q) || (a.arf||'').toLowerCase().includes(q)) &&
-    (!fs || a.status===fs) &&
-    (!fk || getArfKode(a.arf)===fk) &&
-    (!ft || getArfTahun(a.arf)===ft)
-  );
+  let filtered = filterAsetAktif();
   filtered.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const c = document.getElementById('aset-list-body');
   if(!filtered.length){ c.innerHTML = '<div class="ba-empty"><i class="ti ti-building-warehouse" style="font-size:42px;color:var(--text3);"></i><p>'+(asetData.length===0?'Belum ada aset. Klik "Tambah Aset".':'Tidak ada hasil.')+'</p></div>'; return; }
@@ -5146,14 +5273,7 @@ function toggleAsetSelect(id) {
 
 function toggleAsetCheckAll(cb) {
   // centang/hapus semua yang sedang tampil (sesuai filter)
-  const q = (document.getElementById('aset-search').value||'').toLowerCase();
-  const fs = document.getElementById('aset-filter-status').value;
-  const fk = document.getElementById('aset-filter-kode').value;
-  const ft = document.getElementById('aset-filter-tahun').value;
-  const visible = asetData.filter(a =>
-    (!q || (a.nama||'').toLowerCase().includes(q) || (a.arf||'').toLowerCase().includes(q)) &&
-    (!fs || a.status===fs) && (!fk || getArfKode(a.arf)===fk) && (!ft || getArfTahun(a.arf)===ft)
-  );
+  const visible = filterAsetAktif();
   if(cb.checked) visible.forEach(a=>asetSelected.add(a.id));
   else visible.forEach(a=>asetSelected.delete(a.id));
   renderAsetList();
@@ -5223,6 +5343,272 @@ function deleteAsetFromDetail() {
 }
 
 // ── BARCODE PRINT ──
+/* ══════════════════════════════════════════════════════════════
+   KERANJANG LABEL
+   Filter cuma bisa satu pilihan; ini untuk mengumpulkan beberapa
+   nama aset yang berbeda dulu, baru dicetak jadi satu lembar.
+   ══════════════════════════════════════════════════════════════ */
+var labelCart = [];      // daftar id aset
+var _lcSugIdx = -1;
+var _lcSudahCetak = false;
+
+/* Menyusun 36 label butuh waktu; kalau tab tertutup atau ke-refresh
+   daftarnya jangan sampai hilang. */
+function lcSimpan() {
+  try {
+    localStorage.setItem('hesoyam_label_cart', JSON.stringify({ ids: labelCart, dicetak: _lcSudahCetak }));
+  } catch (e) {}
+}
+function lcMuat() {
+  try {
+    var d = JSON.parse(localStorage.getItem('hesoyam_label_cart') || 'null');
+    if (d && d.ids) { labelCart = d.ids; _lcSudahCetak = !!d.dicetak; }
+  } catch (e) {}
+}
+lcMuat();
+
+/* Aset yang sudah dihapus tidak boleh menggantung di keranjang. */
+function lcBersihkanHilang() {
+  if (!asetData.length) return;                 // data belum tersinkron, jangan buang apa pun
+  var ada = {};
+  asetData.forEach(function (a) { ada[a.id] = 1; });
+  var sebelum = labelCart.length;
+  labelCart = labelCart.filter(function (id) { return ada[id]; });
+  if (labelCart.length !== sebelum) lcSimpan();
+}
+
+/* Badge di tombol "Susun Label" supaya dari luar modal pun kelihatan
+   masih ada daftar yang belum dicetak. */
+function lcUpdateBadge() {
+  var el = document.getElementById('lc-badge');
+  if (!el) return;
+  if (labelCart.length) { el.style.display = 'inline-flex'; el.textContent = labelCart.length; }
+  else el.style.display = 'none';
+}
+
+function openLabelCart() {
+  if (!asetData.length) { alert('Belum ada aset.'); return; }
+  document.getElementById('lc-cari').value = '';
+  _lcSugIdx = -1; _lcOpenNama = null;
+  lcBersihkanHilang();
+  lcSugRender();
+  lcRender();
+  document.getElementById('labelcart-modal').classList.add('show');
+  setTimeout(function () { try { document.getElementById('lc-cari').focus(); } catch (e) {} }, 120);
+}
+function closeLabelCart() { document.getElementById('labelcart-modal').classList.remove('show'); }
+
+/* Dua tingkat: daftar nama dulu, klik salah satu baru muncul unit-unitnya.
+   Kalau satu nama punya 40 unit, jangan langsung masuk 40 — biar user
+   memilih sendiri unit mana yang labelnya memang perlu dicetak. */
+var _lcOpenNama = null;
+
+function lcGrupNama(q) {
+  q = String(q || '').trim().toLowerCase();
+  var grup = {}, urut = [];
+  for (var i = 0; i < asetData.length; i++) {
+    var a = asetData[i];
+    var nama = (a.nama || '(tanpa nama)').trim();
+    if (q && nama.toLowerCase().indexOf(q) < 0 && (a.arf || '').toLowerCase().indexOf(q) < 0) continue;
+    if (!grup[nama]) { grup[nama] = []; urut.push(nama); }
+    grup[nama].push(a);
+  }
+  urut.sort(function (x, y) { return x.localeCompare(y, 'id'); });
+  return urut.map(function (n) {
+    var belum = grup[n].filter(function (a) { return labelCart.indexOf(a.id) < 0; }).length;
+    return { nama: n, aset: grup[n], belum: belum };
+  });
+}
+
+function lcSugRender() {
+  var box = document.getElementById('lc-sug');
+  var q = document.getElementById('lc-cari').value;
+
+  // ── tingkat 2: unit-unit dari satu nama ──
+  if (_lcOpenNama) {
+    var unit = asetData.filter(function (a) { return (a.nama || '(tanpa nama)').trim() === _lcOpenNama; });
+    unit.sort(function (x, y) { return String(x.arf || '').localeCompare(String(y.arf || ''), 'id', { numeric: true }); });
+    var belum = unit.filter(function (a) { return labelCart.indexOf(a.id) < 0; }).length;
+    var html = '<div class="lc-sug">' +
+      '<div class="lc-sug-head">' +
+        '<button class="lc-back" onclick="lcTutupNama()"><i class="ti ti-arrow-left"></i></button>' +
+        '<span class="lc-head-nm">' + escHtml(_lcOpenNama) + '</span>' +
+        '<span class="lc-head-jml">' + unit.length + ' unit</span>' +
+        (belum ? '<button class="lc-all" onclick="lcTambahSemuaNama()">Pilih semua (' + belum + ')</button>' : '') +
+      '</div>';
+    html += unit.map(function (a) {
+      var ada = labelCart.indexOf(a.id) >= 0;
+      return '<div class="lc-unit' + (ada ? ' on' : '') + '" onclick="lcToggle(\'' + escHtml(a.id) + '\')">' +
+        '<i class="ti ' + (ada ? 'ti-circle-check' : 'ti-circle') + '"></i>' +
+        '<span class="lc-unit-tx"><b>' + escHtml(a.arf || '(tanpa ARF)') + '</b>' +
+          (a.lokasi ? '<span class="lc-unit-lok"> · ' + escHtml(a.lokasi) + '</span>' : '') +
+          (a.status ? '<span class="lc-unit-lok"> · ' + escHtml(a.status) + '</span>' : '') + '</span>' +
+      '</div>';
+    }).join('');
+    box.innerHTML = html + '</div>';
+    return;
+  }
+
+  // ── tingkat 1: daftar nama ──
+  var saran = lcGrupNama(q);
+  if (!saran.length) {
+    box.innerHTML = q.trim()
+      ? '<div class="lc-sug" style="padding:10px 12px;font-size:12.5px;color:var(--text3);">Tidak ada aset yang cocok.</div>'
+      : '';
+    _lcSugIdx = -1;
+    return;
+  }
+  saran = saran.slice(0, 60);
+  if (_lcSugIdx >= saran.length) _lcSugIdx = saran.length - 1;
+  box.innerHTML = '<div class="lc-sug">' + saran.map(function (s, i) {
+    var kanan = s.belum
+      ? '<span class="lc-sug-jml">' + s.belum + ' unit</span>' +
+        '<button class="lc-plus" onclick="event.stopPropagation();lcTambahSemua(' + i + ')" title="Ambil semuanya">+ semua</button>'
+      : '<span class="lc-sug-jml" style="color:#16a34a;">✓ sudah masuk</span>';
+    return '<div class="lc-sug-row' + (i === _lcSugIdx ? ' on' : '') + '" onclick="lcBukaNama(' + i + ')">' +
+      '<span class="lc-sug-nm">' + escHtml(s.nama) + '</span>' +
+      '<span class="lc-sug-kanan">' + kanan + '<i class="ti ti-chevron-right" style="color:var(--text3);"></i></span></div>';
+  }).join('') + '</div>';
+}
+
+function lcBukaNama(idx) {
+  var saran = lcGrupNama(document.getElementById('lc-cari').value).slice(0, 60);
+  if (!saran[idx]) return;
+  _lcOpenNama = saran[idx].nama;
+  lcSugRender();
+}
+function lcTutupNama() { _lcOpenNama = null; lcSugRender(); }
+
+function lcToggle(id) {
+  var i = labelCart.indexOf(id);
+  if (i >= 0) labelCart.splice(i, 1); else labelCart.push(id);
+  _lcSudahCetak = false;
+  lcSimpan(); lcSugRender(); lcRender();
+}
+
+function lcTambahSemuaNama() {
+  if (!_lcOpenNama) return;
+  asetData.forEach(function (a) {
+    if ((a.nama || '(tanpa nama)').trim() === _lcOpenNama && labelCart.indexOf(a.id) < 0) labelCart.push(a.id);
+  });
+  _lcSudahCetak = false;
+  lcSimpan(); lcSugRender(); lcRender();
+}
+
+function lcTambahSemua(idx) {
+  var saran = lcGrupNama(document.getElementById('lc-cari').value).slice(0, 60);
+  var s = saran[idx];
+  if (!s) return;
+  s.aset.forEach(function (a) { if (labelCart.indexOf(a.id) < 0) labelCart.push(a.id); });
+  _lcSudahCetak = false;
+  lcSimpan(); lcSugRender(); lcRender();
+}
+
+function lcTambahDariInput() {
+  var q = document.getElementById('lc-cari').value.trim();
+  if (!q) { alert('Ketik dulu nama barang atau No ARF-nya.'); return; }
+  // No ARF yang cocok persis -> tambah satu aset itu saja
+  var tepat = null;
+  for (var i = 0; i < asetData.length; i++) {
+    if ((asetData[i].arf || '').trim().toLowerCase() === q.toLowerCase()) { tepat = asetData[i]; break; }
+  }
+  if (tepat) {
+    if (labelCart.indexOf(tepat.id) < 0) labelCart.push(tepat.id);
+    document.getElementById('lc-cari').value = '';
+    _lcSugIdx = -1; lcSugRender(); lcRender();
+    return;
+  }
+  var saran = lcGrupNama(q);
+  if (!saran.length) { alert('Tidak ada aset yang cocok dengan "' + q + '".'); return; }
+  lcBukaNama(_lcSugIdx >= 0 ? _lcSugIdx : 0);   // buka unitnya, biar user pilih sendiri
+}
+
+function lcKey(e) {
+  var saran = lcGrupNama(document.getElementById('lc-cari').value).slice(0, 60);
+  if (e.key === 'ArrowDown') { e.preventDefault(); _lcSugIdx = Math.min(_lcSugIdx + 1, saran.length - 1); lcSugRender(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); _lcSugIdx = Math.max(_lcSugIdx - 1, 0); lcSugRender(); }
+  else if (e.key === 'Enter') { e.preventDefault(); lcTambahDariInput(); }
+}
+
+function lcHapus(id) {
+  labelCart = labelCart.filter(function (x) { return x !== id; });
+  lcSimpan(); lcSugRender(); lcRender();
+}
+function lcKosongkan() {
+  if (!labelCart.length) return;
+  if (!confirm('Kosongkan daftar label?')) return;
+  labelCart = []; _lcSudahCetak = false;
+  lcSimpan(); lcSugRender(); lcRender();
+}
+
+function lcAsetList() {
+  var out = [];
+  for (var i = 0; i < labelCart.length; i++) {
+    var a = asetData.filter(function (x) { return x.id === labelCart[i]; })[0];
+    if (a) out.push(a);
+  }
+  return out;
+}
+
+function lcRender() {
+  var list = lcAsetList();
+  var cfg = loadLabelCfg();
+  var perLembar = (cfg.cols || 3) * (cfg.rows || 4);
+  var n = list.length;
+  var lembar = Math.ceil(n / perLembar);
+  var sisa = n === 0 ? 0 : (lembar * perLembar - n);
+
+  document.getElementById('lc-hitung').textContent = n + ' label';
+  document.getElementById('lc-bar').style.width = (n === 0 ? 0 : Math.min(100, (n % perLembar === 0 ? 100 : (n % perLembar) / perLembar * 100))) + '%';
+  document.getElementById('lc-sisa').textContent = n === 0 ? ''
+    : (lembar + ' lembar' + (sisa ? ' · sisa ' + sisa + ' slot kosong' : ' · pas'));
+  document.getElementById('lc-cetak').disabled = (n === 0);
+
+  lcUpdateBadge();
+  var tanda = document.getElementById('lc-tanda');
+  if (tanda) {
+    if (_lcSudahCetak && n) {
+      tanda.style.display = 'flex';
+      tanda.innerHTML = '<i class="ti ti-info-circle"></i><span>Daftar ini sudah pernah dicetak. Tambah/hapus item akan menghapus tanda ini.</span>' +
+        '<button onclick="lcKosongkan()">Mulai baru</button>';
+    } else tanda.style.display = 'none';
+  }
+  var el = document.getElementById('lc-list');
+  if (!n) {
+    el.innerHTML = '<div class="lc-empty">Belum ada label. Ketik nama barang di atas lalu klik <b>Tambah</b> — bisa berkali-kali dengan nama berbeda.</div>';
+    return;
+  }
+  el.innerHTML = list.map(function (a, i) {
+    return '<div class="lc-row">' +
+      '<span class="lc-no">' + (i + 1) + '</span>' +
+      '<span class="lc-nm">' + escHtml(a.nama || '(tanpa nama)') +
+        '<div class="lc-arf">' + escHtml(a.arf || '') + (a.lokasi ? ' · ' + escHtml(a.lokasi) : '') + '</div></span>' +
+      '<button class="lc-del" onclick="lcHapus(\'' + escHtml(a.id) + '\')" title="Hapus"><i class="ti ti-x"></i></button>' +
+    '</div>';
+  }).join('');
+}
+
+function lcCetak() {
+  var list = lcAsetList();
+  if (!list.length) return;
+  // Aset tanpa No ARF akan menghasilkan QR kosong — stikernya terbuang percuma.
+  var kosong = list.filter(function (a) { return !String(a.arf || '').trim(); });
+  if (kosong.length) {
+    var nm = kosong.slice(0, 3).map(function (a) { return '· ' + (a.nama || '(tanpa nama)'); }).join('\n');
+    var lanjut = confirm(kosong.length + ' aset belum punya No ARF, jadi QR-nya akan kosong:\n\n' + nm +
+      (kosong.length > 3 ? '\n· dan ' + (kosong.length - 3) + ' lainnya' : '') +
+      '\n\nOK = lewati aset itu dan cetak ' + (list.length - kosong.length) + ' sisanya.\nBatal = kembali, isi dulu No ARF-nya.');
+    if (!lanjut) return;
+    list = list.filter(function (a) { return String(a.arf || '').trim(); });
+    if (!list.length) { alert('Tidak ada label yang bisa dicetak.'); return; }
+  }
+  _lcSudahCetak = true;
+  lcSimpan();
+  closeLabelCart();
+  printBarcodeLabels(list);
+  if (typeof showNotif === 'function') showNotif(list.length + ' label dikirim ke pencetak', 'success');
+}
+
 function printAsetBarcode() {
   const a = asetData.find(x=>x.id===asetDetailId); if(!a) return;
   printBarcodeLabels([a]);
@@ -5230,20 +5616,13 @@ function printAsetBarcode() {
 function printAllBarcodes() {
   if(asetData.length===0){ alert('Belum ada aset.'); return; }
   // hormati filter yang aktif (kode/tahun/status/cari) biar bisa cetak sebagian
-  const q = (document.getElementById('aset-search').value||'').toLowerCase();
-  const fs = document.getElementById('aset-filter-status').value;
-  const fk = document.getElementById('aset-filter-kode').value;
-  const ft = document.getElementById('aset-filter-tahun').value;
-  let list = asetData.filter(a =>
-    (!q || (a.nama||'').toLowerCase().includes(q) || (a.arf||'').toLowerCase().includes(q)) &&
-    (!fs || a.status===fs) && (!fk || getArfKode(a.arf)===fk) && (!ft || getArfTahun(a.arf)===ft)
-  );
+  let list = filterAsetAktif();
   if(list.length===0){ alert('Tidak ada aset di filter ini.'); return; }
-  const adaFilter = q||fs||fk||ft;
+  const adaFilter = list.adaFilter;
   let msg = 'Cetak QR untuk '+list.length+' aset';
   if(adaFilter) msg += ' (sesuai filter aktif)';
   msg += '?';
-  if(list.length>100) msg += '\n\n⚠️ Jumlahnya banyak ('+list.length+'). Kalau HP/browser terasa berat, sebaiknya cetak per bagian pakai filter Kode atau Tahun dulu.';
+  if(list.length>100) msg += '\n\n⚠️ Jumlahnya banyak ('+list.length+'). Kalau HP/browser terasa berat, sebaiknya cetak per bagian pakai filter Nama Barang, Lokasi, Kode, atau Tahun dulu.';
   if(!confirm(msg)) return;
   printBarcodeLabels(list);
 }
@@ -6254,7 +6633,7 @@ function cariAsetByKode(kode) {
 /* Filter yang masih aktif bisa menyembunyikan aset yang barusan discan,
    jadi dikosongkan dulu supaya hasilnya pasti kelihatan. */
 function resetAsetFilterUntukCari() {
-  ['aset-filter-status', 'aset-filter-kode', 'aset-filter-tahun'].forEach(function (id) {
+  ['aset-filter-status', 'aset-filter-kode', 'aset-filter-tahun', 'aset-filter-nama', 'aset-filter-lokasi'].forEach(function (id) {
     var el = document.getElementById(id);
     if (el && el.value) { el.value = ''; if (typeof sddRefresh === 'function') sddRefresh(id); }
   });
@@ -7002,10 +7381,34 @@ function simpleHash(str) {
 
 let currentUser = null;
 
-// Simpan sesi tanpa hash password (keamanan: hash tidak perlu ada di sessionStorage)
+/* Sesi login disimpan di localStorage, bukan sessionStorage.
+   sessionStorage terhapus begitu tab/aplikasi ditutup — itu sebabnya dulu
+   harus login lagi tiap kali aplikasi dibuka ulang di HP.
+   Hash password tetap tidak ikut disimpan. */
+var SESI_HARI = 30;   // berapa lama tetap login sebelum diminta login lagi
+
 function saveSession(user) {
-  const safe = { nama:user.nama, username:user.username, role:user.role, status:user.status, createdAt:user.createdAt };
-  sessionStorage.setItem('hesoyam_user', JSON.stringify(safe));
+  const safe = { nama:user.nama, username:user.username, role:user.role,
+                 status:user.status, createdAt:user.createdAt, terakhir: Date.now() };
+  try { localStorage.setItem('hesoyam_user', JSON.stringify(safe)); } catch(e) {}
+  try { sessionStorage.removeItem('hesoyam_user'); } catch(e) {}   // bersihkan sisa cara lama
+}
+
+function bacaSession() {
+  var s = null;
+  try { s = localStorage.getItem('hesoyam_user'); } catch(e) {}
+  if (!s) { try { s = sessionStorage.getItem('hesoyam_user'); } catch(e) {} }   // sesi lama
+  if (!s) return null;
+  try {
+    var u = JSON.parse(s);
+    if (u.terakhir && (Date.now() - u.terakhir) > SESI_HARI * 86400000) { hapusSession(); return null; }
+    return u;
+  } catch(e) { return null; }
+}
+
+function hapusSession() {
+  try { localStorage.removeItem('hesoyam_user'); } catch(e) {}
+  try { sessionStorage.removeItem('hesoyam_user'); } catch(e) {}
 }
 
 function initLogin() {
@@ -7014,27 +7417,24 @@ function initLogin() {
     if (ll) ll.innerHTML = '<img src="' + MAYBE_LOGO + '" alt="HESOYAM"/>';
   }
   // restore session
-  const saved = sessionStorage.getItem('hesoyam_user');
-  if (saved) {
-    try {
-      const u = JSON.parse(saved);
-      // re-verify against Firebase (status might have changed)
-      if (FB_OK) {
-        fbDB.ref('users/' + u.username).get().then(snap => {
-          const fresh = snap.val();
-          if (fresh && fresh.status === 'approved') {
-            currentUser = fresh;
-            saveSession(fresh);
-            hideLogin();
-          } else {
-            sessionStorage.removeItem('hesoyam_user');
-            showLoginScreen();
-          }
-        }).catch(()=>{ currentUser = u; hideLogin(); }); // offline fallback
-        return;
-      }
-      currentUser = u; hideLogin(); return;
-    } catch(e){}
+  const u = bacaSession();
+  if (u) {
+    // status akun bisa berubah (diblokir/dihapus admin), jadi tetap dicek ke server
+    if (FB_OK) {
+      fbDB.ref('users/' + u.username).get().then(snap => {
+        const fresh = snap.val();
+        if (fresh && fresh.status === 'approved') {
+          currentUser = fresh;
+          saveSession(fresh);      // perpanjang masa berlaku tiap kali dibuka
+          hideLogin();
+        } else {
+          hapusSession();
+          showLoginScreen();
+        }
+      }).catch(()=>{ currentUser = u; hideLogin(); }); // offline: tetap boleh masuk
+      return;
+    }
+    currentUser = u; hideLogin(); return;
   }
   showLoginScreen();
 }
@@ -7183,7 +7583,7 @@ function hideLogin() {
 
 function logout() {
   if (!confirm('Yakin mau keluar?')) return;
-  sessionStorage.removeItem('hesoyam_user');
+  hapusSession();
   currentUser = null;
   document.getElementById('login-username').value = '';
   document.getElementById('login-password').value = '';
